@@ -4,39 +4,39 @@ DockIt is a simple to-do list tracker.  It tracks tasks.
 
 ## Terms
 
-  - DockIt dataset: The system state including the tasks being tracked and related information.
-  - DockIt implementation: The system that provides interfaces to the dataset, but maintains no persistent state.
-      (It does maintain runtime state, like currently logged in users, or cached information about the dataset)
+- **DockIt dataset:** The system state including the tasks being tracked and related information.
+- **DockIt implementation:** The system that provides interfaces to the dataset, but maintains no persistent state.
+  (It does maintain runtime state, like currently logged in users, or cached information about the dataset)
 
 ## High Level Requirements
 
 High level requirements for DockIt:
 
-  - Must be able to run locally or in the cloud.
-  - Must have a simple web interface for human use.
-  - Must have a simple REST interface for script / AI use or perhaps a future iOS/Android app.
-  - Must have a simple yet secure method of tracking users and logins.
-  - The dataset (task list, states, priorities, ownership) must be easily backed up and restored.
-    - Datasets must be independent of the DockIt implementation.
-    - DockIt upgrades must support existing datasets, potentially using one-time upgrade if necessary.
-    - DockIt datasets must be portable between DockIt installs of sufficient version.
-  - The data must be easily read by other systems.
-  - Simple role based permissions.
-  - Concurrent edits through the web or REST interface will be detected and the second edit will be rejected.
-  - Markdown should be sanitized to prevent XSS.  Other text fields should be presented as basic text.
-    Enumerated fields will be displayed as built in strings.
+- Must be able to run locally or in the cloud.
+- Must have a simple web interface for human use.
+- Must have a simple REST interface for script / AI use or perhaps a future iOS/Android app.
+- Must have a simple yet secure method of tracking users and logins.
+- The dataset (task list, states, priorities, ownership) must be easily backed up and restored.
+  - Datasets must be independent of the DockIt implementation.
+  - DockIt upgrades must support existing datasets, potentially using one-time upgrade if necessary.
+  - DockIt datasets must be portable between DockIt installs of sufficient version.
+- The data must be easily read by other systems.
+- Simple role based permissions.
+- Concurrent edits through the web or REST interface will be detected and the second edit will be rejected.
+- Markdown should be sanitized to prevent XSS.  Other text fields should be presented as basic text.
+  Enumerated fields will be displayed as built in strings.
 
 ## Out of Scope
 
 Other ideas that are explicitly out of scope for version 1.  This is not an exhaustive list.
 
-  - Due dates
-  - Tags
-  - Dependencies
-  - Attachments
-  - Notifications
+- Due dates
+- Tags
+- Dependencies
+- Attachments
+- Notifications
 
-No additional requirement should be assumed.  Anything not mentioned as a requirement is not a requirement.
+> No additional requirement should be assumed.  Anything not mentioned as a requirement is not a requirement.
 
 ## Features
 
@@ -53,59 +53,62 @@ No support for project deletion or archiving is required or expected.
 
 #### ID
 
-  Unique to each DockIt dataset.  Short alphanumeric value.  Required and immutable.
+Unique to each DockIt dataset.  Short alphanumeric value.  Required and immutable.
 
 #### Name
 
-  Short project name.  Any displayable characters.  Required.
+Short project name.  Any displayable characters.  Required.
 
 #### State
 
-  Current project state, chosen from a static list built into DockIt.  Required.
-  The list will expand over time, but assume existing entries will not be removed.   
-  The initial list:
-    - Planned
-    - Active
-    - Inactive
-    - Dormant
-    - Complete
-  The dataset will reference these by immutable id/value, but these values may be mapped to a
-  friendly display string that may change over time.
+Current project state, chosen from a static list built into DockIt.  Required.
+The list will expand over time, but assume existing entries will not be removed.
+
+The initial list:
+
+- Planned
+- Active
+- Inactive
+- Dormant
+- Complete
+
+The dataset will reference these by immutable id/value, but these values may be mapped to a
+friendly display string that may change over time.
 
 #### Description
 
-  The project description should allow markdown content.
+The project description should allow markdown content.
 
 #### URLs
 
-  This property is optional, including one primary URL and zero or more additional URLs. 
+This property is optional, including one primary URL and zero or more additional URLs.
 
 ### User
 
-  A user is someone who can log in to the DockIt system, either through the Web interface or the REST interface.
-  Users also can be assigned to properties in individual tasks.  Users cannot be deleted, but may be deactivated.
+A user is someone who can log in to the DockIt system, either through the Web interface or the REST interface.
+Users also can be assigned to properties in individual tasks.  Users cannot be deleted, but may be deactivated.
 
-  Users have the following properties:
+Users have the following properties:
 
 #### ID
 
-  User ID, unique within the dataset.
+User ID, unique within the dataset.
 
 #### Name
 
-  User's name for UI display.
+User's name for UI display.
 
 #### Email Address
 
-  Email address of the user.  May potentially be used for sending email notifications.
+Email address of the user.  May potentially be used for sending email notifications.
 
 #### Role
 
-  A user's role defines what they can do.  Roles and permissions are built into the DockIt implementation.
+A user's role defines what they can do.  Roles and permissions are built into the DockIt implementation.
 
 #### Additional Properties Required for Authentication
 
-  TBD
+TBD
 
 ### Tasks
 
@@ -116,71 +119,77 @@ No support for task deletion or archiving is required or expected.
 
 #### ID
 
-  Unique to each DockIt dataset, made up of the project ID, a hyphen, and an autogenerated numerical ID.
+Unique to each DockIt dataset, made up of the project ID, a hyphen, and an autogenerated numerical ID.
 
 #### Title
 
-  Short description of the task, generally in title case.
+Short description of the task, generally in title case.
 
 #### Description
 
-  The task description should allow markdown content.  This is optional, but should be provided.
+The task description should allow markdown content.  This is optional, but should be provided.
 
 #### Timestamps
 
-  Date & time when the task was created.
-  Date & time when the task was last modified (any modification).
-  Does not include full history for version 1.
+Date & time when the task was created.
+Date & time when the task was last modified (any modification).
+Does not include full history for version 1.
 
 #### Comments
 
-  Each task has zero or more comments.
-  Each comment has:
-    - Commenter (User)
-    - Creation date & time.
-    - Comment text (markdown)
-  Comments can be added by anyone with permission, not just the task creator or owner.
-  Comment text can be edited by the commenter.
-  Comments can be deleted by the commenter.
+Each task has zero or more comments.
+
+Each comment has:
+
+- Commenter (User)
+- Creation date & time.
+- Comment text (markdown)
+
+Comments can be added by anyone with permission, not just the task creator or owner.
+Comment text can be edited by the commenter.
+Comments can be deleted by the commenter.
 
 #### Creator
 
-  User who created the task.  Required & immutable.
+User who created the task.  Required & immutable.
 
 #### Owner
 
-  User who currently owns the task.  Defaults to the creator.  Required.
+User who currently owns the task.  Defaults to the creator.  Required.
 
 #### State
 
-  Current task state, chosen from a static list built into DockIt.  Required.
-  The list will expand over time, but assume existing entries will not be removed.   
-  The initial list:
-   - New
-   - In Progress
-   - Deferred
-   - Paused
-   - Complete
-  The dataset will reference these by immutable id/value, but these values may be mapped to a
-  friendly display string that may change over time.
+Current task state, chosen from a static list built into DockIt.  Required.
+The list will expand over time, but assume existing entries will not be removed.
 
-  State transitions are unrestricted.
+The initial list:
+
+- New
+- In Progress
+- Deferred
+- Paused
+- Complete
+
+The dataset will reference these by immutable id/value, but these values may be mapped to a
+friendly display string that may change over time.
+
+State transitions are unrestricted.
 
 #### Substate
 
-  Individual states may have sub-states.   If a state has sub-states, then the sub-state is required
-  when the task is in that state. These sub-states will be chosen from a static list built
-  into DockIt.  The lists may expand over time, but assume existing entries will not be removed.
-  Initially, only the Complete state will have sub-states:
-    - Done
-    - Rejected
-  The dataset will reference these by immutable id/value, but these values may be mapped to a
-  friendly display string that may change over time.
+Individual states may have sub-states.   If a state has sub-states, then the sub-state is required
+when the task is in that state. These sub-states will be chosen from a static list built
+into DockIt.  The lists may expand over time, but assume existing entries will not be removed.
+
+Initially, only the Complete state will have sub-states:
+
+- Done
+- Rejected
+
+The dataset will reference these by immutable id/value, but these values may be mapped to a
+friendly display string that may change over time.
 
 #### Priority (1-5)
 
-  Simple numeric priorities.  Priority 1 is highest. Assume this list will not change.  Required.
-  Default to 3.
-
-
-
+Simple numeric priorities.  Priority 1 is highest. Assume this list will not change.  Required.
+Default to 3.
