@@ -24,8 +24,12 @@ Each task shall be kept in a single YAML file. This file will be under its proje
 
 Users information will also be in the dataset in yaml format; however, related authentication information will
 either need to be kept seperately or encrypted.  Consider mapping users to host based users, or allow
-pluggalble user auth?  Perhaps simple users with no auth for v1?  TBD.
+pluggalble user auth?  Perhaps simple users with no auth for early development?  TBD.
 
 The YAML file names will be the item's (project, task, etc) ID with the yaml extension
 Individual files will be written in a manner that protects against corruption.
 
+## Miscellaneous Rules
+
+All datetimes must be stored in UTC in a machine friendly timestamp format.
+Timezone conversion and formatting is the job ov the interface.
