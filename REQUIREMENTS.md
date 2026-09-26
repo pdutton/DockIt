@@ -82,7 +82,7 @@ No support for project deletion or archiving is required or expected.
 
 ### User
 
-  A user is someone who can login to the DockIt system, either through the Web interface or the REST interface.
+  A user is someone who can log in to the DockIt system, either through the Web interface or the REST interface.
   Users also can be assigned to properties in individual tasks.  Users cannot be deleted, but may be deactivated.
 
   Users have the following properties:
