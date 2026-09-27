@@ -2,6 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"io"
+	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -207,5 +211,65 @@ func TestCheckNotADataset(t *testing.T) {
 	r := dockit(t, "", nil, "check", t.TempDir())
 	if r.code != 1 || !strings.Contains(r.stdout, "not a DockIt dataset") {
 		t.Errorf("%+v", r)
+	}
+}
+
+func TestServe(t *testing.T) {
+	dir := initDataset(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	ready := make(chan string, 1)
+	done := make(chan error, 1)
+	go func() {
+		done <- serve(ctx, slog.New(slog.DiscardHandler), dir, "127.0.0.1:0", "", "", "pdutton", ready)
+	}()
+	var addr string
+	select {
+	case addr = <-ready:
+	case err := <-done:
+		t.Fatalf("serve exited: %v", err)
+	}
+
+	resp, err := http.Get("http://" + addr + "/api/v1/me")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || !strings.Contains(string(body), `"pdutton"`) {
+		t.Errorf("GET /me = %d %s", resp.StatusCode, body)
+	}
+
+	// While serving, the dataset is locked.
+	if r := dockit(t, "", nil, "serve", "-listen", "127.0.0.1:0", dir); r.code != 1 || !strings.Contains(r.stderr, "locked") {
+		t.Errorf("second serve: %+v", r)
+	}
+
+	cancel()
+	if err := <-done; err != nil {
+		t.Errorf("serve returned %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, store.LockFile)); !os.IsNotExist(err) {
+		t.Error("lock not released on shutdown")
+	}
+}
+
+func TestServeFlags(t *testing.T) {
+	dir := initDataset(t)
+	for _, tc := range []struct {
+		args []string
+		msg  string
+	}{
+		{[]string{"-dev-insecure-user", "pdutton", "-listen", ":0"}, "localhost"},
+		{[]string{"-dev-insecure-user", "pdutton", "-listen", "0.0.0.0:0"}, "localhost"},
+		{[]string{"-tls-cert", "c.pem"}, "together"},
+		{[]string{"-dev-insecure-user", "ghost", "-listen", "localhost:0"}, "not an active user"},
+	} {
+		r := dockit(t, "", nil, append(append([]string{"serve"}, tc.args...), dir)...)
+		if r.code != 1 || !strings.Contains(r.stderr, tc.msg) {
+			t.Errorf("%v: %+v", tc.args, r)
+		}
+	}
+	if r := dockit(t, "", nil, "serve", t.TempDir()); r.code != 1 || !strings.Contains(r.stderr, "not a DockIt dataset") {
+		t.Errorf("serve on non-dataset: %+v", r)
 	}
 }

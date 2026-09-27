@@ -432,6 +432,7 @@ GET    /api/v1/users                            list
 POST   /api/v1/users                            create (admin)
 GET    /api/v1/users/{uid}
 PATCH  /api/v1/users/{uid}                      update, deactivate (admin, If-Match)
+POST   /api/v1/users/{uid}/password             reset to a new one-time password (admin)
 
 GET    /api/v1/me                               current user
 GET    /api/v1/me/tokens                        list own tokens (metadata only)
@@ -444,7 +445,11 @@ GET    /api/v1/enums                            states, substates, roles, displa
 - `PATCH` bodies are JSON Merge Patch (RFC 7396).
 - JSON field names match the YAML field names, so the API and the files describe records the same way.
 - Enumerated values are sent as stable ids; `/enums` supplies display strings for clients that want them.
-- Errors use one shape: `{"error": {"code": "...", "message": "...", "field": "..."}}`.
+- Errors use one shape: `{"error": {"code": "...", "message": "...", "field": "..."}}`.  A `412` adds
+  `"current"`, the record as it is now, and its `ETag`.
+- Request bodies must be `application/json` (or `application/merge-patch+json`).  Besides being honest,
+  this means a cross-site HTML form can never produce a request the API accepts.
+- Failed token attempts are rate-limited per client address (20 a minute), returning `429`.
 - Markdown fields are returned as source text.  Clients that render it are responsible for sanitizing.
 
 ## Validation
