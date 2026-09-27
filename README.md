@@ -105,7 +105,9 @@ same way.
 ### Build the image
 
 ```sh
-podman build --build-arg VERSION=$(git describe --tags --always --dirty) -t dockit .
+VERSION=$(git describe --tags --always --dirty)
+podman build --build-arg VERSION=$VERSION -t dockit:$VERSION .
+podman tag dockit:$VERSION dockit:latest
 ```
 
 `VERSION` is what `dockit version` prints. The build compiles with
@@ -125,7 +127,7 @@ Note the one-time password it prints.
 ### Start and stop DockIt
 
 ```sh
-podman run -d --name dockit --stop-timeout 15 -p 8080:8080 -v dockit-data:/data dockit
+podman run --rm -d --name dockit --stop-timeout 15 -p 8080:8080 -v dockit-data:/data dockit
 ```
 
 Then open `http://localhost:8080/` and log in. `podman stop dockit` sends
@@ -161,7 +163,7 @@ not 65532, so a plain bind mount fails with `permission denied`. Either map your
 user to 65532, which keeps the files owned by you on the host:
 
 ```sh
-podman run -d --name dockit --stop-timeout 15 -p 8080:8080 \
+podman run --rm -d --name dockit --stop-timeout 15 -p 8080:8080 \
   --userns=keep-id:uid=65532,gid=65532 -v /srv/dockit/data:/data:Z dockit
 ```
 
@@ -197,7 +199,7 @@ beside the dataset directory, which in the container is `/`, neither writable no
 kept, so give it a second volume with `-backup`:
 
 ```sh
-podman stop dockit && podman rm dockit
+podman stop dockit
 podman volume create dockit-backups
 podman run --rm -v dockit-data:/data -v dockit-backups:/backup dockit upgrade -backup /backup
 podman run --rm -v dockit-data:/data dockit check
