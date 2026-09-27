@@ -1,0 +1,4 @@
+# gofmt requires LF line endings, so keep Go sources LF on every platform.
+*.go   text eol=lf
+go.mod text eol=lf
+go.sum text eol=lf

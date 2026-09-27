@@ -166,3 +166,46 @@ func TestUsage(t *testing.T) {
 		}
 	}
 }
+
+func TestCheck(t *testing.T) {
+	dir := initDataset(t)
+	r := dockit(t, "", nil, "check", dir)
+	if r.code != 0 || !strings.Contains(r.stdout, "0 errors, 0 warnings.") || !strings.Contains(r.stdout, "1 user.") {
+		t.Errorf("clean dataset: %+v", r)
+	}
+
+	os.WriteFile(filepath.Join(dir, "notes.txt"), nil, 0o644)
+	os.WriteFile(filepath.Join(dir, "users", "pdutton.yaml"), []byte("id: [\n"), 0o644)
+	r = dockit(t, "", nil, "check", dir)
+	if r.code != 1 || !strings.Contains(r.stdout, "error: users/pdutton.yaml: cannot parse") ||
+		!strings.Contains(r.stdout, "warning: notes.txt: unexpected file") ||
+		!strings.Contains(r.stdout, "1 error, ") || r.stderr != "" {
+		t.Errorf("broken dataset: %+v", r)
+	}
+
+	r = dockit(t, "", nil, "check", "-q", dir)
+	if r.code != 1 || strings.Contains(r.stdout, "warning") || strings.Contains(r.stdout, "errors") ||
+		!strings.Contains(r.stdout, "cannot parse") {
+		t.Errorf("check -q: %+v", r)
+	}
+}
+
+func TestCheckLocked(t *testing.T) {
+	dir := initDataset(t)
+	s, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	r := dockit(t, "", nil, "check", dir)
+	if r.code != 0 || !strings.Contains(r.stdout, "an instance may be running") {
+		t.Errorf("check on locked dataset: %+v", r)
+	}
+}
+
+func TestCheckNotADataset(t *testing.T) {
+	r := dockit(t, "", nil, "check", t.TempDir())
+	if r.code != 1 || !strings.Contains(r.stdout, "not a DockIt dataset") {
+		t.Errorf("%+v", r)
+	}
+}

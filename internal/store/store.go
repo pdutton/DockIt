@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -21,8 +22,8 @@ const (
 	ProjectsDir = "projects"
 	UsersDir    = "users"
 	AuthDir     = "auth"
-	tasksDir    = "tasks"
-	ext         = ".yaml"
+	TasksDir    = "tasks"
+	Ext         = ".yaml"
 )
 
 // ErrNoDataset is returned when a directory has no dockit.yaml.
@@ -113,23 +114,23 @@ func projectDir(root, pid string) string {
 
 // ProjectPath returns the path of project pid's file.
 func ProjectPath(root, pid string) string {
-	return filepath.Join(projectDir(root, pid), pid+ext)
+	return filepath.Join(projectDir(root, pid), pid+Ext)
 }
 
 // TaskPath returns the path of task tid's file.  tid must be well-formed.
 func TaskPath(root, tid string) string {
 	pid, _, _ := model.ParseTaskID(tid)
-	return filepath.Join(projectDir(root, pid), tasksDir, tid+ext)
+	return filepath.Join(projectDir(root, pid), TasksDir, tid+Ext)
 }
 
 // UserPath returns the path of user uid's profile.
 func UserPath(root, uid string) string {
-	return filepath.Join(root, UsersDir, uid+ext)
+	return filepath.Join(root, UsersDir, uid+Ext)
 }
 
 // AuthPath returns the path of user uid's secrets.
 func AuthPath(root, uid string) string {
-	return filepath.Join(root, AuthDir, uid+ext)
+	return filepath.Join(root, AuthDir, uid+Ext)
 }
 
 func checkProjectID(pid string) error {
@@ -226,7 +227,7 @@ func ReadProject(root, pid string) (*model.Project, error) {
 	if err := checkProjectID(pid); err != nil {
 		return nil, err
 	}
-	return read[model.Project](ProjectPath(root, pid))
+	return ReadPath[model.Project](ProjectPath(root, pid))
 }
 
 // ReadTask reads task tid.
@@ -234,7 +235,7 @@ func ReadTask(root, tid string) (*model.Task, error) {
 	if err := checkTaskID(tid); err != nil {
 		return nil, err
 	}
-	return read[model.Task](TaskPath(root, tid))
+	return ReadPath[model.Task](TaskPath(root, tid))
 }
 
 // ReadUser reads user uid's profile.
@@ -242,7 +243,7 @@ func ReadUser(root, uid string) (*model.User, error) {
 	if err := checkUserID(uid); err != nil {
 		return nil, err
 	}
-	return read[model.User](UserPath(root, uid))
+	return ReadPath[model.User](UserPath(root, uid))
 }
 
 // ReadAuth reads user uid's secrets.
@@ -250,11 +251,11 @@ func ReadAuth(root, uid string) (*model.Auth, error) {
 	if err := checkUserID(uid); err != nil {
 		return nil, err
 	}
-	return read[model.Auth](AuthPath(root, uid))
+	return ReadPath[model.Auth](AuthPath(root, uid))
 }
 
-// read decodes the file at path into a new T.
-func read[T any](path string) (*T, error) {
+// ReadPath decodes the YAML file at path into a new T, strictly (see readFile).
+func ReadPath[T any](path string) (*T, error) {
 	var v T
 	if err := readFile(path, &v); err != nil {
 		return nil, err
@@ -286,7 +287,20 @@ func readFile(path string, v any) error {
 	dec := yaml.NewDecoder(f)
 	dec.KnownFields(true)
 	if err := dec.Decode(v); err != nil {
-		return fmt.Errorf("%s: %w", path, err)
+		if errors.Is(err, io.EOF) {
+			err = errors.New("empty file")
+		}
+		return &ParseError{Path: path, Err: err}
 	}
 	return nil
 }
+
+// ParseError is returned when a file exists but is not a valid record.
+type ParseError struct {
+	Path string
+	Err  error
+}
+
+func (e *ParseError) Error() string { return e.Path + ": " + e.Err.Error() }
+
+func (e *ParseError) Unwrap() error { return e.Err }
