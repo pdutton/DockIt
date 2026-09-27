@@ -63,12 +63,29 @@ type Store struct {
 // in the current format.  Leftover temporary files are removed, which is safe
 // because the lock is held.
 func Open(root string) (*Store, error) {
+	return open(root, func(format int) error {
+		if format != model.FormatCurrent {
+			return &FormatError{format}
+		}
+		return nil
+	})
+}
+
+// OpenAnyFormat locks the dataset at root whatever its format, for `dockit
+// upgrade`, which checks the format itself.  Records must not be read or
+// written through the returned store unless they are in a format this build
+// understands.
+func OpenAnyFormat(root string) (*Store, error) {
+	return open(root, func(int) error { return nil })
+}
+
+func open(root string, checkFormat func(int) error) (*Store, error) {
 	meta, err := ReadMeta(root)
 	if err != nil {
 		return nil, err
 	}
-	if meta.Format != model.FormatCurrent {
-		return nil, &FormatError{meta.Format}
+	if err := checkFormat(meta.Format); err != nil {
+		return nil, err
 	}
 	lock, err := AcquireLock(root)
 	if err != nil {
@@ -98,7 +115,7 @@ func (s *Store) removeTmpFiles() error {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() && isTmpName(d.Name()) {
+		if !d.IsDir() && IsTmpName(d.Name()) {
 			return os.Remove(path)
 		}
 		return nil
@@ -165,7 +182,7 @@ func (s *Store) write(path string, v any) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	return writeFileAtomic(path, data)
+	return WriteFileAtomic(path, data)
 }
 
 // WriteMeta writes dockit.yaml.

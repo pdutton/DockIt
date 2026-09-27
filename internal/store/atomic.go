@@ -25,16 +25,16 @@ func tmpName(path string) string {
 	return filepath.Join(dir, "."+base+".tmp")
 }
 
-// isTmpName reports whether a file name is a temporary file left by
-// writeFileAtomic.
-func isTmpName(name string) bool {
+// IsTmpName reports whether a file name is a temporary file left by
+// WriteFileAtomic.
+func IsTmpName(name string) bool {
 	return strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".tmp")
 }
 
-// writeFileAtomic replaces path with data so that a reader, or a crash, sees
+// WriteFileAtomic replaces path with data so that a reader, or a crash, sees
 // either the old file or the new one, never a partial one.  On failure the old
 // file is left intact.
-func writeFileAtomic(path string, data []byte) (err error) {
+func WriteFileAtomic(path string, data []byte) (err error) {
 	tmp := tmpName(path)
 	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {

@@ -155,17 +155,13 @@ func (l *loader) readDir(dir string, required bool) []fs.DirEntry {
 // warnings, but they usually mean a hand edit went wrong.
 func (l *loader) unexpected(path string, e fs.DirEntry) {
 	switch {
-	case !e.IsDir() && isTmpName(e.Name()):
+	case !e.IsDir() && store.IsTmpName(e.Name()):
 		l.warnf(path, "", "leftover temporary file from an interrupted write; removed when DockIt next starts")
 	case e.IsDir():
 		l.warnf(path, "", "unexpected directory")
 	default:
 		l.warnf(path, "", "unexpected file")
 	}
-}
-
-func isTmpName(name string) bool {
-	return strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".tmp")
 }
 
 func (l *loader) checkRoot() {

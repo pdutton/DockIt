@@ -12,7 +12,7 @@ import (
 
 func TestWriteFileAtomicRetriesWhileTargetOpen(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "x.yaml")
-	writeFileAtomic(path, []byte("old\n"))
+	WriteFileAtomic(path, []byte("old\n"))
 	f, err := os.Open(path)
 	if err != nil {
 		t.Fatal(err)
@@ -21,7 +21,7 @@ func TestWriteFileAtomicRetriesWhileTargetOpen(t *testing.T) {
 		time.Sleep(30 * time.Millisecond)
 		f.Close()
 	}()
-	if err := writeFileAtomic(path, []byte("new\n")); err != nil {
+	if err := WriteFileAtomic(path, []byte("new\n")); err != nil {
 		t.Fatalf("write did not succeed once the reader closed: %v", err)
 	}
 	if got := readString(t, path); got != "new\n" {
@@ -31,13 +31,13 @@ func TestWriteFileAtomicRetriesWhileTargetOpen(t *testing.T) {
 
 func TestWriteFileAtomicGivesUpCleanly(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "x.yaml")
-	writeFileAtomic(path, []byte("old\n"))
+	WriteFileAtomic(path, []byte("old\n"))
 	f, err := os.Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	if err := writeFileAtomic(path, []byte("new\n")); err == nil {
+	if err := WriteFileAtomic(path, []byte("new\n")); err == nil {
 		t.Fatal("write succeeded while the target was held open")
 	}
 	if got := readString(t, path); got != "old\n" {
