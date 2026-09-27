@@ -273,3 +273,14 @@ func TestServeFlags(t *testing.T) {
 		t.Errorf("serve on non-dataset: %+v", r)
 	}
 }
+
+func TestUpgradeCommand(t *testing.T) {
+	dir := initDataset(t)
+	r := dockit(t, "", nil, "upgrade", dir)
+	if r.code != 0 || !strings.Contains(r.stdout, "already in format 1") {
+		t.Errorf("upgrade of current dataset: %+v", r)
+	}
+	if r := dockit(t, "", nil, "upgrade", t.TempDir()); r.code != 1 || !strings.Contains(r.stderr, "not a DockIt dataset") {
+		t.Errorf("upgrade of non-dataset: %+v", r)
+	}
+}

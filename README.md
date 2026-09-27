@@ -70,7 +70,48 @@ only once.
 |------------------|------------------------------------------------------------------|
 | `dockit unlock`  | Remove a stale lock left by an instance that is no longer running. Shows who holds the lock and asks first; `-yes` skips the question. |
 | `dockit check`   | Validate a dataset: file names match IDs, required fields are present, and references between records resolve. Safe to run while DockIt is running. `-q` prints errors only. Exits 1 if there are errors. |
-| `dockit upgrade` | Back up a dataset, then migrate it to the current format. *(Not implemented yet.)* |
+| `dockit upgrade` | Migrate a dataset to the format this DockIt uses, after copying the whole dataset to a backup directory beside it (for example `data.format-1.20260927T021500Z`). `serve` never upgrades on its own; it asks you to run this. |
 | `dockit version` | Print the build version and the dataset format it supports.      |
 
 Run `dockit <command> -h` for a command's flags.
+
+## Your data
+
+A dataset is a directory of YAML files, one per project, task and user, so any
+tool can read it. See [DESIGN.md](DESIGN.md#dataset) for the layout and formats.
+
+- **Back up** by copying the dataset directory. Every file is written
+  atomically, so a copy taken while DockIt runs holds only complete files. Leave
+  out `dockit.lock`. Keeping the dataset in git works well too.
+- **Restore** by stopping DockIt, replacing the directory, and starting DockIt.
+- **Move** a dataset to another install by copying it; that install must be the
+  same version or newer.
+- **Edit by hand** only while DockIt is stopped, then run `dockit check` before
+  starting it again.
+- **Share for reading** without secrets by leaving out `auth/`, which holds only
+  one-way password and token hashes anyway.
+- Keep the dataset on a local disk, or a network filesystem with reliable
+  exclusive file creation, which the lock file depends on.
+
+## Development
+
+```sh
+go test ./...
+go build -ldflags "-X main.version=$(git describe --tags --always)" ./cmd/dockit
+```
+
+To try changes without logging in, run
+`dockit serve -dev-insecure-user <user id> <dir>`, which only listens on
+localhost. The code follows the architecture in [DESIGN.md](DESIGN.md):
+
+| Package             | Role                                                   |
+|---------------------|--------------------------------------------------------|
+| `cmd/dockit`        | Command line                                           |
+| `internal/web`      | Web interface: server-rendered HTML                    |
+| `internal/api`      | REST interface: JSON under `/api/v1`                   |
+| `internal/service`  | Every rule: permissions, validation, versions, IDs     |
+| `internal/index`    | In-memory copy of the dataset; loading and checking    |
+| `internal/store`    | YAML files, atomic writes, lock file                   |
+| `internal/model`    | Records, enumerations, field checks                    |
+| `internal/upgrade`  | Dataset format migrations                              |
+| `internal/auth`, `internal/ratelimit` | Password and token hashing; failed-attempt limits |

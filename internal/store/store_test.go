@@ -218,7 +218,7 @@ func TestOpenRemovesTmpFiles(t *testing.T) {
 func TestWriteFileAtomic(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "x.yaml")
 	for _, content := range []string{"one\n", "two\n"} {
-		if err := writeFileAtomic(path, []byte(content)); err != nil {
+		if err := WriteFileAtomic(path, []byte(content)); err != nil {
 			t.Fatal(err)
 		}
 		if got := readString(t, path); got != content {
@@ -233,10 +233,10 @@ func TestWriteFileAtomic(t *testing.T) {
 func TestWriteFileAtomicFailureKeepsOld(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "x.yaml")
-	writeFileAtomic(path, []byte("old\n"))
+	WriteFileAtomic(path, []byte("old\n"))
 	// A directory where the temp file should go makes the write fail.
 	os.Mkdir(tmpName(path), 0o755)
-	if err := writeFileAtomic(path, []byte("new\n")); err == nil {
+	if err := WriteFileAtomic(path, []byte("new\n")); err == nil {
 		t.Fatal("write succeeded")
 	}
 	if got := readString(t, path); got != "old\n" {
