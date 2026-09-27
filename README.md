@@ -199,7 +199,7 @@ beside the dataset directory, which in the container is `/`, neither writable no
 kept, so give it a second volume with `-backup`:
 
 ```sh
-podman stop dockit && podman rm dockit
+podman stop dockit
 podman volume create dockit-backups
 podman run --rm -v dockit-data:/data -v dockit-backups:/backup dockit upgrade -backup /backup
 podman run --rm -v dockit-data:/data dockit check
