@@ -309,6 +309,7 @@ Your starting ideas were host-based users, pluggable auth, or no auth for early 
 ```yaml
 user: pdutton
 password: $argon2id$v=19$m=65536,t=3,p=4$...
+must_change_password: true      # optional; set on a one-time password, cleared when changed
 tokens:
   - id: tok_7Kq2
     name: laptop script
