@@ -37,6 +37,7 @@ type command struct {
 
 var commands = []command{
 	{"init", "Create a new dataset and its first admin; empty directory only", runInit},
+	{"check", "Validate a dataset offline", runCheck},
 	{"unlock", "Remove a stale lock file after confirming no instance is running", runUnlock},
 	{"version", "Print the build version and supported dataset formats", runVersion},
 }
@@ -48,6 +49,9 @@ func main() {
 
 // errUsage means the command line was wrong; usage has already been printed.
 var errUsage = errors.New("usage")
+
+// errSilent means the command failed and has already said why.
+var errSilent = errors.New("failed")
 
 func run(e *env, args []string) int {
 	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
@@ -62,6 +66,8 @@ func run(e *env, args []string) int {
 				return 0
 			case errors.Is(err, errUsage), errors.Is(err, flag.ErrHelp):
 				return 2
+			case errors.Is(err, errSilent):
+				return 1
 			default:
 				fmt.Fprintf(e.stderr, "dockit %s: %v\n", c.name, err)
 				return 1

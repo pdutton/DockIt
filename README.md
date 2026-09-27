@@ -47,7 +47,7 @@ instance may run against a dataset at a time. *(Not implemented yet.)*
 | Command          | Purpose                                                          |
 |------------------|------------------------------------------------------------------|
 | `dockit unlock`  | Remove a stale lock left by an instance that is no longer running. Shows who holds the lock and asks first; `-yes` skips the question. |
-| `dockit check`   | Validate a dataset offline. *(Not implemented yet.)*             |
+| `dockit check`   | Validate a dataset: file names match IDs, required fields are present, and references between records resolve. Safe to run while DockIt is running. `-q` prints errors only. Exits 1 if there are errors. |
 | `dockit upgrade` | Back up a dataset, then migrate it to the current format. *(Not implemented yet.)* |
 | `dockit version` | Print the build version and the dataset format it supports.      |
 

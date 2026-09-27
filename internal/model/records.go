@@ -147,3 +147,35 @@ type Token struct {
 func Now() time.Time {
 	return time.Now().UTC().Truncate(time.Second)
 }
+
+// Clone returns a deep copy of the project.
+func (p *Project) Clone() *Project {
+	c := *p
+	if p.URLs != nil {
+		c.URLs = make(URLs, len(p.URLs))
+		for k, v := range p.URLs {
+			c.URLs[k] = slices.Clone(v)
+		}
+	}
+	return &c
+}
+
+// Clone returns a copy of the user.
+func (u *User) Clone() *User {
+	c := *u
+	return &c
+}
+
+// Clone returns a deep copy of the task, including its comments.
+func (t *Task) Clone() *Task {
+	c := *t
+	c.Comments = slices.Clone(t.Comments)
+	return &c
+}
+
+// Clone returns a deep copy of the user's secrets.
+func (a *Auth) Clone() *Auth {
+	c := *a
+	c.Tokens = slices.Clone(a.Tokens)
+	return &c
+}
