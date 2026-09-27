@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/pdutton/DockIt/internal/api"
 	"github.com/pdutton/DockIt/internal/service"
 	"github.com/pdutton/DockIt/internal/store"
+	"github.com/pdutton/DockIt/internal/web"
 )
 
 // shutdownTimeout is how long in-flight requests get to finish on shutdown.
@@ -28,6 +30,8 @@ func runServe(e *env, args []string) error {
 		"TLS certificate file, to serve HTTPS directly ($DOCKIT_TLS_CERT)")
 	keyFile := flags.String("tls-key", e.getenv("DOCKIT_TLS_KEY"),
 		"TLS key file ($DOCKIT_TLS_KEY)")
+	baseURL := flags.String("base-url", e.getenv("DOCKIT_BASE_URL"),
+		"URL users reach DockIt at, such as https://dockit.example.com; https marks cookies Secure ($DOCKIT_BASE_URL)")
 	devUser := flags.String("dev-insecure-user", "",
 		"development only: treat every request as this user, with no authentication; localhost only")
 	if err := flags.Parse(args); err != nil {
@@ -47,12 +51,22 @@ func runServe(e *env, args []string) error {
 	log := slog.New(slog.NewTextHandler(e.stderr, nil))
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	return serve(ctx, log, dir, *listen, *certFile, *keyFile, *devUser, nil)
+	return serve(ctx, log, serveConfig{
+		dir: dir, listen: *listen, certFile: *certFile, keyFile: *keyFile, devUser: *devUser, baseURL: *baseURL,
+	}, nil)
 }
 
 // serve runs the server until ctx is done.  If ready is not nil, the bound
 // address is sent on it once the server is listening.
-func serve(ctx context.Context, log *slog.Logger, dir, listen, certFile, keyFile, devUser string, ready chan<- string) error {
+type serveConfig struct {
+	dir, listen       string
+	certFile, keyFile string
+	devUser           string
+	baseURL           string
+}
+
+func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- string) error {
+	dir, listen, certFile, keyFile, devUser := cfg.dir, cfg.listen, cfg.certFile, cfg.keyFile, cfg.devUser
 	svc, report, err := service.Open(dir)
 	var le *store.LockedError
 	switch {
@@ -93,6 +107,15 @@ func serve(ctx context.Context, log *slog.Logger, dir, listen, certFile, keyFile
 
 	mux := http.NewServeMux()
 	mux.Handle(api.Prefix+"/", api.New(svc, api.Options{DevUser: devUser, Logger: log}))
+	ui, err := web.New(svc, web.Options{
+		Secure:  certFile != "" || strings.HasPrefix(cfg.baseURL, "https://"),
+		DevUser: devUser,
+		Logger:  log,
+	})
+	if err != nil {
+		return err
+	}
+	mux.Handle("/", ui)
 
 	srv := &http.Server{
 		Handler:           mux,
@@ -110,7 +133,7 @@ func serve(ctx context.Context, log *slog.Logger, dir, listen, certFile, keyFile
 	if certFile != "" {
 		scheme = "https"
 	}
-	log.Info("DockIt serving", "dataset", dir, "url", scheme+"://"+ln.Addr().String()+api.Prefix+"/")
+	log.Info("DockIt serving", "dataset", dir, "url", scheme+"://"+ln.Addr().String()+"/")
 	if ready != nil {
 		ready <- ln.Addr().String()
 	}

@@ -1,0 +1,56 @@
+{{define "content"}}
+{{$d := .Data}}
+<h1>{{.Title}}</h1>
+{{with $d.Conflict}}
+<div class="conflict">
+  <p><strong>Someone else changed this project while you were editing it.</strong>
+  Their version is shown below. Your changes are still in the form; submit again to replace theirs.</p>
+  <dl>
+    <dt>Name</dt><dd>{{.Name}}</dd>
+    <dt>State</dt><dd>{{projectState .State}}</dd>
+    <dt>Description</dt><dd><pre>{{.Description}}</pre></dd>
+    {{range $t, $list := .URLs}}<dt>{{urlType $t}} URLs</dt><dd>{{range $list}}{{.}}<br>{{end}}</dd>{{end}}
+    <dt>Modified</dt><dd>{{time .Modified}}</dd>
+  </dl>
+</div>
+{{end}}
+<form method="post" action="{{if $d.New}}/projects{{else}}/projects/{{$d.Form.ID}}{{end}}" class="card">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="version" value="{{$d.Form.Version}}">
+  {{if $d.New}}
+  <label>ID <span class="hint">2–10 characters, A–Z then A–Z or 0–9; cannot be changed later</span>
+    <input name="id" value="{{$d.Form.ID}}" required pattern="[A-Z][A-Z0-9]{1,9}" autocapitalize="characters">
+    {{with $d.Errors.id}}<span class="error">{{.}}</span>{{end}}
+  </label>
+  {{end}}
+  <label>Name
+    <input name="name" value="{{$d.Form.Name}}" required maxlength="200">
+    {{with $d.Errors.name}}<span class="error">{{.}}</span>{{end}}
+  </label>
+  <label>State
+    <select name="state">
+      {{$known := false}}
+      {{range projectStates}}<option value="{{.ID}}"{{if eq .ID $d.Form.State}} selected{{$known = true}}{{end}}>{{.Display}}</option>{{end}}
+      {{if not $known}}<option value="{{$d.Form.State}}" selected>{{$d.Form.State}} (unknown)</option>{{end}}
+    </select>
+    {{with $d.Errors.state}}<span class="error">{{.}}</span>{{end}}
+  </label>
+  <label>Description <span class="hint">Markdown</span>
+    <textarea name="description" rows="8">{{$d.Form.Description}}</textarea>
+    {{with $d.Errors.description}}<span class="error">{{.}}</span>{{end}}
+  </label>
+  <fieldset>
+    <legend>URLs <span class="hint">one per line; the first of each kind is the primary</span></legend>
+    {{range urlTypes}}
+    <label>{{.Display}}
+      <textarea name="urls_{{.ID}}" rows="2">{{index $d.Form.URLs .ID}}</textarea>
+    </label>
+    {{end}}
+    {{with $d.Errors.urls}}<span class="error">{{.}}</span>{{end}}
+  </fieldset>
+  <div class="actions">
+    <button type="submit">{{if $d.New}}Create project{{else}}Save{{end}}</button>
+    <a href="{{if $d.New}}/{{else}}/projects/{{$d.Form.ID}}{{end}}">Cancel</a>
+  </div>
+</form>
+{{end}}

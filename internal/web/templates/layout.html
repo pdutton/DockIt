@@ -1,0 +1,71 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · DockIt</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">DockIt</a>
+  {{if .Me}}
+  <nav>
+    <a href="/"{{if eq .Path "/"}} aria-current="page"{{end}}>Projects</a>
+    <a href="/users"{{if eq .Path "/users"}} aria-current="page"{{end}}>Users</a>
+    <a href="/account"{{if eq .Path "/account"}} aria-current="page"{{end}}>{{.Me.Name}}</a>
+    <form method="post" action="/logout" class="inline">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <button type="submit" class="link">Log out</button>
+    </form>
+  </nav>
+  {{end}}
+</header>
+<main>
+{{template "content" .}}
+</main>
+</body>
+</html>
+{{end}}
+
+{{/* Shared task fields.  Expects .Form, .Errors and .Owners. */}}
+{{define "taskfields"}}
+<label>Title
+  <input name="title" value="{{.Form.Title}}" required maxlength="200">
+  {{with .Errors.title}}<span class="error">{{.}}</span>{{end}}
+</label>
+<label>Description <span class="hint">Markdown</span>
+  <textarea name="description" rows="8">{{.Form.Description}}</textarea>
+  {{with .Errors.description}}<span class="error">{{.}}</span>{{end}}
+</label>
+<div class="row">
+  <label>Owner
+    <select name="owner">
+      {{range .Owners}}<option value="{{.ID}}"{{if eq .ID $.Form.Owner}} selected{{end}}>{{.Name}} ({{.ID}}){{if not .Active}} — deactivated{{end}}</option>{{end}}
+    </select>
+    {{with .Errors.owner}}<span class="error">{{.}}</span>{{end}}
+  </label>
+  <label>State
+    <select name="state">
+      {{$state := .Form.State}}{{$known := false}}
+      {{range taskStates}}<option value="{{.ID}}"{{if eq .ID $state}} selected{{$known = true}}{{end}}>{{.Display}}</option>{{end}}
+      {{if not $known}}<option value="{{$state}}" selected>{{$state}} (unknown)</option>{{end}}
+    </select>
+    {{with .Errors.state}}<span class="error">{{.}}</span>{{end}}
+  </label>
+  <label>Substate
+    <select name="substate">
+      <option value="">—</option>
+      {{range allSubstates}}<option value="{{.ID}}"{{if and (eq .ID $.Form.Substate) (eq .State $.Form.State)}} selected{{end}}>{{.Display}}</option>{{end}}
+    </select>
+    {{with .Errors.substate}}<span class="error">{{.}}</span>{{end}}
+  </label>
+  <label>Priority
+    <select name="priority">
+      {{range priorities}}<option value="{{.}}"{{if eq . $.Form.Priority}} selected{{end}}>{{.}}{{if eq . 1}} (highest){{end}}</option>{{end}}
+    </select>
+    {{with .Errors.priority}}<span class="error">{{.}}</span>{{end}}
+  </label>
+</div>
+{{end}}

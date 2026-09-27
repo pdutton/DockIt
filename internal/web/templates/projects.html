@@ -1,0 +1,23 @@
+{{define "content"}}
+<div class="heading">
+  <h1>Projects</h1>
+  {{if isAdmin .Me}}<a class="button" href="/projects/new">New project</a>{{end}}
+</div>
+{{if .Data}}
+<table>
+  <thead><tr><th>ID</th><th>Name</th><th>State</th><th>Modified</th></tr></thead>
+  <tbody>
+  {{range .Data}}
+    <tr>
+      <td><a href="/projects/{{.ID}}">{{.ID}}</a></td>
+      <td><a href="/projects/{{.ID}}">{{.Name}}</a></td>
+      <td>{{projectState .State}}</td>
+      <td>{{time .Modified}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p>There are no projects yet.{{if isAdmin .Me}} <a href="/projects/new">Create the first one.</a>{{end}}</p>
+{{end}}
+{{end}}

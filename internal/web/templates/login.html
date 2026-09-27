@@ -1,0 +1,14 @@
+{{define "content"}}
+<form method="post" action="/login" class="card narrow">
+  <h1>Log in</h1>
+  {{with .Data.Error}}<p class="error">{{.}}</p>{{end}}
+  <input type="hidden" name="next" value="{{.Data.Next}}">
+  <label>User ID
+    <input name="user" value="{{.Data.User}}" autocomplete="username" autocapitalize="none" required autofocus>
+  </label>
+  <label>Password
+    <input name="password" type="password" autocomplete="current-password" required>
+  </label>
+  <button type="submit">Log in</button>
+</form>
+{{end}}

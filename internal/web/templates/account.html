@@ -1,0 +1,66 @@
+{{define "content"}}
+{{$d := .Data}}
+<h1>My account</h1>
+<p class="meta">{{.Me.Name}} ({{.Me.ID}}) · {{.Me.Email}} · {{role .Me.Role}}</p>
+
+<form method="post" action="/account/password" class="card">
+  <h2>Change password</h2>
+  {{if $d.MustChange}}<p class="notice">You are using a one-time password. Choose your own password to continue.</p>{{end}}
+  {{if $d.Changed}}<p class="notice">Your password has been changed.</p>{{end}}
+  {{with $d.PasswordError}}<p class="error">{{.}}</p>{{end}}
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <label>Current password
+    <input name="current" type="password" autocomplete="current-password" required>
+  </label>
+  <label>New password <span class="hint">at least 8 characters</span>
+    <input name="password" type="password" autocomplete="new-password" minlength="8" required>
+  </label>
+  <label>New password again
+    <input name="confirm" type="password" autocomplete="new-password" minlength="8" required>
+  </label>
+  <div class="actions"><button type="submit">Change password</button></div>
+</form>
+
+{{if not $d.MustChange}}
+<section class="card">
+  <h2>API tokens</h2>
+  <p>Scripts use a token to reach the REST API as you, with your role. Send it as
+  <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+  {{with $d.NewToken}}
+  <div class="notice">
+    <p><strong>Your new token.</strong> Copy it now: it is shown only once and cannot be recovered.</p>
+    <p class="secret"><code>{{.}}</code></p>
+  </div>
+  {{end}}
+  {{if $d.Tokens}}
+  <table>
+    <thead><tr><th>Name</th><th>Created</th><th></th></tr></thead>
+    <tbody>
+    {{range $d.Tokens}}
+      <tr>
+        <td>{{.Name}}</td>
+        <td>{{time .Created}}</td>
+        <td>
+          <form method="post" action="/account/tokens/{{.ID}}/delete" class="inline">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <button type="submit" class="danger">Revoke</button>
+          </form>
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="hint">You have no API tokens.</p>
+  {{end}}
+  <form method="post" action="/account/tokens" class="row">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label>New token name
+      <input name="name" value="{{$d.TokenName}}" placeholder="e.g. laptop script" required maxlength="200">
+    </label>
+    <button type="submit">Create token</button>
+  </form>
+  {{with $d.TokenError}}<p class="error">{{.}}</p>{{end}}
+</section>
+{{end}}
+{{end}}

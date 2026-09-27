@@ -1,0 +1,78 @@
+{{define "content"}}
+{{$d := .Data}}{{$t := $d.Task}}{{$me := .Me}}
+<p class="crumbs"><a href="/projects/{{$d.Project.ID}}">{{$d.Project.Name}}</a></p>
+<h1><span class="id">{{$t.ID}}</span> {{$t.Title}}</h1>
+<dl class="facts">
+  <dt>State</dt><dd>{{taskState $t.State}}{{if $t.Substate}} ({{substate $t.State $t.Substate}}){{end}}</dd>
+  <dt>Priority</dt><dd>{{$t.Priority}}</dd>
+  <dt>Owner</dt><dd>{{$t.Owner}}</dd>
+  <dt>Creator</dt><dd>{{$t.Creator}}</dd>
+  <dt>Created</dt><dd>{{time $t.Created}}</dd>
+  <dt>Modified</dt><dd>{{time $t.Modified}}</dd>
+</dl>
+{{with $t.Description}}<div class="markdown">{{markdown .}}</div>{{else}}<p class="hint">No description.</p>{{end}}
+
+{{if canEdit $me}}
+<details class="edit"{{if $d.EditingOpen}} open{{end}}>
+  <summary>Edit task</summary>
+  {{with $d.Conflict}}
+  <div class="conflict">
+    <p><strong>Someone else changed this task while you were editing it.</strong>
+    Their version is shown above the form. Your changes are still in the form; submit again to replace theirs.</p>
+    <dl>
+      <dt>Title</dt><dd>{{.Title}}</dd>
+      <dt>State</dt><dd>{{taskState .State}}{{if .Substate}} ({{substate .State .Substate}}){{end}}</dd>
+      <dt>Priority</dt><dd>{{.Priority}}</dd>
+      <dt>Owner</dt><dd>{{.Owner}}</dd>
+      <dt>Description</dt><dd><pre>{{.Description}}</pre></dd>
+    </dl>
+  </div>
+  {{end}}
+  <form method="post" action="/tasks/{{$t.ID}}">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="version" value="{{$d.Form.Version}}">
+    {{template "taskfields" $d}}
+    <div class="actions"><button type="submit">Save</button></div>
+  </form>
+</details>
+{{end}}
+
+<h2 id="comments">Comments</h2>
+{{range $t.Comments}}
+<article class="comment" id="comment-{{.ID}}">
+  <header><strong>{{.Commenter}}</strong> · {{time .Created}}{{if ne .Version 1}} · edited {{time .Modified}}{{end}}</header>
+  <div class="markdown">{{markdown .Text}}</div>
+  {{if and (eq .Commenter $me.ID) (canEdit $me)}}
+  {{$editing := eq $d.Comment.ID .ID}}
+  {{if and $editing $d.Comment.Error}}<p class="error">{{$d.Comment.Error}}</p>{{end}}
+  <details{{if $editing}} open{{end}}>
+    <summary>Edit</summary>
+    <form method="post" action="/tasks/{{$t.ID}}/comments/{{.ID}}">
+      <input type="hidden" name="csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="version" value="{{.Version}}">
+      <textarea name="text" rows="4">{{if and $editing $d.Comment.Text}}{{$d.Comment.Text}}{{else}}{{.Text}}{{end}}</textarea>
+      <div class="actions"><button type="submit">Save comment</button></div>
+    </form>
+    <form method="post" action="/tasks/{{$t.ID}}/comments/{{.ID}}/delete" class="inline">
+      <input type="hidden" name="csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="version" value="{{.Version}}">
+      <button type="submit" class="danger">Delete comment</button>
+    </form>
+  </details>
+  {{end}}
+</article>
+{{else}}
+<p class="hint">No comments yet.</p>
+{{end}}
+
+{{if canEdit $me}}
+<form method="post" action="/tasks/{{$t.ID}}/comments" class="card">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <label>Add a comment <span class="hint">Markdown</span>
+    <textarea name="text" rows="4" required>{{if eq $d.Comment.ID 0}}{{$d.Comment.Text}}{{end}}</textarea>
+  </label>
+  {{if and (eq $d.Comment.ID 0) $d.Comment.Error}}<p class="error">{{$d.Comment.Error}}</p>{{end}}
+  <div class="actions"><button type="submit">Comment</button></div>
+</form>
+{{end}}
+{{end}}

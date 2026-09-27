@@ -220,7 +220,7 @@ func TestServe(t *testing.T) {
 	ready := make(chan string, 1)
 	done := make(chan error, 1)
 	go func() {
-		done <- serve(ctx, slog.New(slog.DiscardHandler), dir, "127.0.0.1:0", "", "", "pdutton", ready)
+		done <- serve(ctx, slog.New(slog.DiscardHandler), serveConfig{dir: dir, listen: "127.0.0.1:0", devUser: "pdutton"}, ready)
 	}()
 	var addr string
 	select {

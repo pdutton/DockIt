@@ -39,14 +39,17 @@ only once and must be changed at first login.
 dockit serve /path/to/data
 ```
 
-This locks the dataset and serves the REST API at `http://localhost:8080/api/v1/`.
-The web interface is not implemented yet. Only one instance may run against a
-dataset at a time; stop it with Ctrl+C, which releases the lock.
+This locks the dataset and serves the web interface at `http://localhost:8080/`
+and the REST API under `/api/v1/`. Log in with the admin user and one-time
+password from `dockit init`; you will be asked to choose your own password. Only
+one instance may run against a dataset at a time; stop it with Ctrl+C, which
+releases the lock.
 
 | Flag                 | Environment       | Default          | Purpose                           |
 |----------------------|-------------------|------------------|-----------------------------------|
 | `-listen`            | `DOCKIT_LISTEN`   | `localhost:8080` | Address to listen on. Use `:8080` to accept connections from other machines. |
 | `-tls-cert`, `-tls-key` | `DOCKIT_TLS_CERT`, `DOCKIT_TLS_KEY` | | Serve HTTPS directly. In the cloud, terminate TLS at a reverse proxy instead. |
+| `-base-url`          | `DOCKIT_BASE_URL` |                  | The URL people use to reach DockIt, such as `https://dockit.example.com`. An `https` URL marks the login cookie Secure; set it when a proxy terminates TLS. |
 | `-dev-insecure-user` |                   |                  | Development only: no authentication; every request acts as this user. Refuses to start unless listening on localhost. |
 
 ### Use the REST API
@@ -57,17 +60,9 @@ To update a record, send the `ETag` you read back as `If-Match`; if someone else
 changed the record in the meantime, the update is rejected with `412` and the
 current record. The endpoints are listed in [DESIGN.md](DESIGN.md#rest-api).
 
-Tokens are created with `POST /api/v1/me/tokens`. Until the web interface
-exists, the way to get your first token is to run DockIt briefly in development
-mode on your own machine:
-
-```sh
-dockit serve -dev-insecure-user pdutton /path/to/data
-curl -H 'Content-Type: application/json' -d '{"name":"my script"}' http://localhost:8080/api/v1/me/tokens
-```
-
-The token is shown only once. Stop DockIt and start it again without
-`-dev-insecure-user`.
+Create a token on the **My account** page of the web interface (or with
+`POST /api/v1/me/tokens`). A token acts as you, with your role, and is shown
+only once.
 
 ### Other commands
 
