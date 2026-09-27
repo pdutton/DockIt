@@ -193,6 +193,7 @@ substate: done
 priority: 3
 created: 2026-09-26T21:54:43Z
 modified: 2026-09-27T09:00:00Z
+last_comment_id: 1              # optional; highest comment id ever used
 comments:
   - id: 1
     version: 1
@@ -209,7 +210,9 @@ Notes:
   [concurrency control](#concurrent-edits).  Comments carry their own `version`, so comments and task edits never conflict.
 - `created`/`modified` on projects and users are not required, but they cost nothing and help operators.
 - Comment `id` is a per-task sequence, never reused, so the REST API can address a comment.  A deleted
-  comment is removed from the file.
+  comment is removed from the file.  Because deleting the newest comment would otherwise let its id be
+  reused, the task keeps `last_comment_id`, and the next id is one more than the larger of that and the
+  highest id present.
 - Project `urls` is keyed by URL type.  Order within each list is significant, so the first URL of a
   type is its primary.  Order between types is not significant; keys are written in the enumeration's
   built-in order and empty lists are omitted.  The REST API uses the same shape.
@@ -335,6 +338,9 @@ and a lock-out risk for little gain over one-way hashes.)
   Tokens carry the user's role; there are no per-token scopes in version 1.
 - Deactivated users cannot log in, and their tokens stop working immediately.
 - Failed logins are rate-limited per user ID and per client address, in memory.
+- Passwords are 8 to 256 characters.  There are no composition rules.
+- An admin can reset a user's password, which gives the user a new one-time password that must be changed
+  at next login.  This is the recovery path for a forgotten password.
 
 ### Bootstrap
 

@@ -262,6 +262,9 @@ func (t *Task) Validate() []*FieldError {
 		}
 	}
 
+	if t.LastCommentID < 0 {
+		p.add(fieldErr("last_comment_id", "must be 0 or more"))
+	}
 	if t.Priority < MinPriority || t.Priority > MaxPriority {
 		p.add(fieldErr("priority", "must be %d to %d", MinPriority, MaxPriority))
 	}
