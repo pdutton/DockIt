@@ -105,7 +105,8 @@ same way.
 ### Build the image
 
 ```sh
-podman build --build-arg VERSION=$(git describe --tags --always --dirty) -t dockit .
+VERSION=$(git describe --tags --always --dirty)
+podman build --build-arg VERSION=$VERSION -t dockit:$VERSION .
 ```
 
 `VERSION` is what `dockit version` prints. The build compiles with
