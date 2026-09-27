@@ -23,21 +23,21 @@ const DefaultPriority = 3
 
 // Meta is the dataset metadata in dockit.yaml.
 type Meta struct {
-	Format    int       `yaml:"format"`
-	DatasetID string    `yaml:"dataset_id"`
-	Created   time.Time `yaml:"created"`
+	Format    int       `yaml:"format" json:"format"`
+	DatasetID string    `yaml:"dataset_id" json:"dataset_id"`
+	Created   time.Time `yaml:"created" json:"created"`
 }
 
 // Project is a project record, projects/<id>/<id>.yaml.
 type Project struct {
-	ID          string    `yaml:"id"`
-	Version     int       `yaml:"version"`
-	Name        string    `yaml:"name"`
-	State       string    `yaml:"state"`
-	Description string    `yaml:"description,omitempty"`
-	URLs        URLs      `yaml:"urls,omitempty"`
-	Created     time.Time `yaml:"created"`
-	Modified    time.Time `yaml:"modified"`
+	ID          string    `yaml:"id" json:"id"`
+	Version     int       `yaml:"version" json:"version"`
+	Name        string    `yaml:"name" json:"name"`
+	State       string    `yaml:"state" json:"state"`
+	Description string    `yaml:"description,omitempty" json:"description,omitempty"`
+	URLs        URLs      `yaml:"urls,omitempty" json:"urls,omitempty"`
+	Created     time.Time `yaml:"created" json:"created"`
+	Modified    time.Time `yaml:"modified" json:"modified"`
 }
 
 // URLs maps a URL type to an ordered list of URLs; the first URL of a type is
@@ -88,60 +88,60 @@ func (u URLs) MarshalYAML() (any, error) {
 
 // User is a user profile, users/<id>.yaml.  It holds no secrets.
 type User struct {
-	ID       string    `yaml:"id"`
-	Version  int       `yaml:"version"`
-	Name     string    `yaml:"name"`
-	Email    string    `yaml:"email"`
-	Role     string    `yaml:"role"`
-	Active   bool      `yaml:"active"`
-	Created  time.Time `yaml:"created"`
-	Modified time.Time `yaml:"modified"`
+	ID       string    `yaml:"id" json:"id"`
+	Version  int       `yaml:"version" json:"version"`
+	Name     string    `yaml:"name" json:"name"`
+	Email    string    `yaml:"email" json:"email"`
+	Role     string    `yaml:"role" json:"role"`
+	Active   bool      `yaml:"active" json:"active"`
+	Created  time.Time `yaml:"created" json:"created"`
+	Modified time.Time `yaml:"modified" json:"modified"`
 }
 
 // Task is a task record, including its comments,
 // projects/<pid>/tasks/<id>.yaml.
 type Task struct {
-	ID            string    `yaml:"id"`
-	Version       int       `yaml:"version"`
-	Title         string    `yaml:"title"`
-	Description   string    `yaml:"description,omitempty"`
-	Creator       string    `yaml:"creator"`
-	Owner         string    `yaml:"owner"`
-	State         string    `yaml:"state"`
-	Substate      string    `yaml:"substate,omitempty"`
-	Priority      int       `yaml:"priority"`
-	Created       time.Time `yaml:"created"`
-	Modified      time.Time `yaml:"modified"`
-	LastCommentID int       `yaml:"last_comment_id,omitempty"` // highest comment ID ever used
-	Comments      []Comment `yaml:"comments,omitempty"`
+	ID            string    `yaml:"id" json:"id"`
+	Version       int       `yaml:"version" json:"version"`
+	Title         string    `yaml:"title" json:"title"`
+	Description   string    `yaml:"description,omitempty" json:"description,omitempty"`
+	Creator       string    `yaml:"creator" json:"creator"`
+	Owner         string    `yaml:"owner" json:"owner"`
+	State         string    `yaml:"state" json:"state"`
+	Substate      string    `yaml:"substate,omitempty" json:"substate,omitempty"`
+	Priority      int       `yaml:"priority" json:"priority"`
+	Created       time.Time `yaml:"created" json:"created"`
+	Modified      time.Time `yaml:"modified" json:"modified"`
+	LastCommentID int       `yaml:"last_comment_id,omitempty" json:"last_comment_id,omitempty"` // highest comment ID ever used
+	Comments      []Comment `yaml:"comments,omitempty" json:"comments,omitempty"`
 }
 
 // Comment is a comment on a task.  Its ID is a per-task sequence that is
 // never reused.
 type Comment struct {
-	ID        int       `yaml:"id"`
-	Version   int       `yaml:"version"`
-	Commenter string    `yaml:"commenter"`
-	Created   time.Time `yaml:"created"`
-	Modified  time.Time `yaml:"modified"`
-	Text      string    `yaml:"text"`
+	ID        int       `yaml:"id" json:"id"`
+	Version   int       `yaml:"version" json:"version"`
+	Commenter string    `yaml:"commenter" json:"commenter"`
+	Created   time.Time `yaml:"created" json:"created"`
+	Modified  time.Time `yaml:"modified" json:"modified"`
+	Text      string    `yaml:"text" json:"text"`
 }
 
 // Auth holds a user's secrets, auth/<user id>.yaml.  Nothing in it is
 // reversible.
 type Auth struct {
-	User               string  `yaml:"user"`
-	Password           string  `yaml:"password"`
-	MustChangePassword bool    `yaml:"must_change_password,omitempty"`
-	Tokens             []Token `yaml:"tokens,omitempty"`
+	User               string  `yaml:"user" json:"user"`
+	Password           string  `yaml:"password" json:"-"`
+	MustChangePassword bool    `yaml:"must_change_password,omitempty" json:"must_change_password,omitempty"`
+	Tokens             []Token `yaml:"tokens,omitempty" json:"tokens,omitempty"`
 }
 
 // Token is an API token.  Only its hash is stored.
 type Token struct {
-	ID      string    `yaml:"id"`
-	Name    string    `yaml:"name"`
-	Hash    string    `yaml:"hash"`
-	Created time.Time `yaml:"created"`
+	ID      string    `yaml:"id" json:"id"`
+	Name    string    `yaml:"name" json:"name"`
+	Hash    string    `yaml:"hash" json:"hash,omitempty"`
+	Created time.Time `yaml:"created" json:"created"`
 }
 
 // Now returns the current time as stored in the dataset: UTC, whole seconds.

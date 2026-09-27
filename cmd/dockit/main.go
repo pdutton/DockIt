@@ -38,6 +38,7 @@ type command struct {
 var commands = []command{
 	{"init", "Create a new dataset and its first admin; empty directory only", runInit},
 	{"check", "Validate a dataset offline", runCheck},
+	{"serve", "Take the lock, load the dataset, and serve the REST API", runServe},
 	{"unlock", "Remove a stale lock file after confirming no instance is running", runUnlock},
 	{"version", "Print the build version and supported dataset formats", runVersion},
 }
