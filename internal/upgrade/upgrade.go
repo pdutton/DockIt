@@ -1,5 +1,5 @@
 // Package upgrade migrates a dataset to the current format, in place, after
-// writing a full backup beside it.  Upgrades are never implicit: `dockit
+// writing a full backup beside it or in a directory the operator chooses.  Upgrades are never implicit: `dockit
 // serve` refuses an older dataset and tells the operator to run `dockit
 // upgrade`, so a dataset is never silently made unreadable to an older
 // install.
@@ -41,11 +41,11 @@ type Result struct {
 }
 
 // Run upgrades the dataset at root to format target using migrations.
-// It takes the dataset lock, copies the whole dataset to a new sibling
-// directory, then applies each step in turn, recording the new format after
-// each one.  If a step fails the dataset is left in the last completed
+// It takes the dataset lock, copies the whole dataset to a new directory in
+// backupParent (beside root if backupParent is empty), then applies each
+// step in turn, recording the new format after each one.  If a step fails the dataset is left in the last completed
 // format, and the backup holds the original.
-func Run(root string, target int, migrations map[int]Migration, now time.Time) (*Result, error) {
+func Run(root, backupParent string, target int, migrations map[int]Migration, now time.Time) (*Result, error) {
 	s, err := store.OpenAnyFormat(root)
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func Run(root string, target int, migrations map[int]Migration, now time.Time) (
 		}
 	}
 
-	backup, err := backupDir(root, from, now)
+	backup, err := backupDir(root, backupParent, from, now)
 	if err != nil {
 		return nil, err
 	}
@@ -90,15 +90,28 @@ func Run(root string, target int, migrations map[int]Migration, now time.Time) (
 	return &Result{From: from, To: target, Backup: backup}, nil
 }
 
-// backupDir creates and returns a new, empty directory beside root, named
-// for the format and time, such as data.format-1.20260927T021500Z.
-func backupDir(root string, format int, now time.Time) (string, error) {
+// backupDir creates and returns a new, empty directory in parent, or beside
+// root if parent is empty, named for the format and time, such as
+// data.format-1.20260927T021500Z.
+func backupDir(root, parent string, format int, now time.Time) (string, error) {
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return "", err
 	}
+	if parent == "" {
+		parent = filepath.Dir(abs)
+	} else {
+		if parent, err = filepath.Abs(parent); err != nil {
+			return "", err
+		}
+		// The copy would include itself, and the dataset would gain a stray
+		// directory.
+		if rel, err := filepath.Rel(abs, parent); err == nil && filepath.IsLocal(rel) {
+			return "", fmt.Errorf("the backup directory %s is inside the dataset", parent)
+		}
+	}
 	name := fmt.Sprintf("%s.format-%d.%s", filepath.Base(abs), format, now.UTC().Format("20060102T150405Z"))
-	dir := filepath.Join(filepath.Dir(abs), name)
+	dir := filepath.Join(parent, name)
 	// Mkdir, not MkdirAll: fail rather than mix into an existing directory.
 	if err := os.Mkdir(dir, 0o755); err != nil {
 		return "", err

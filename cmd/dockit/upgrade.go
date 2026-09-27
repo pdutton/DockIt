@@ -11,6 +11,8 @@ import (
 
 func runUpgrade(e *env, args []string) error {
 	flags := newFlagSet(e, "upgrade", "<dir>")
+	backup := flags.String("backup", "",
+		"directory to create the backup in (default: beside the dataset); must be outside the dataset")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -18,7 +20,7 @@ func runUpgrade(e *env, args []string) error {
 	if err != nil {
 		return err
 	}
-	res, err := upgrade.Run(dir, model.FormatCurrent, upgrade.Migrations, time.Now())
+	res, err := upgrade.Run(dir, *backup, model.FormatCurrent, upgrade.Migrations, time.Now())
 	if errors.Is(err, upgrade.ErrCurrent) {
 		fmt.Fprintf(e.stdout, "The dataset is already in format %d; nothing to do.\n", model.FormatCurrent)
 		return nil

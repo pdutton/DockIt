@@ -60,7 +60,7 @@ func TestUpgrade(t *testing.T) {
 		},
 		2: nil, // an additive change: only the number moves
 	}
-	res, err := Run(root, 3, migrations, now)
+	res, err := Run(root, "", 3, migrations, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestUpgrade(t *testing.T) {
 
 func TestUpgradeCurrent(t *testing.T) {
 	root := newDataset(t)
-	if _, err := Run(root, model.FormatCurrent, Migrations, now); !errors.Is(err, ErrCurrent) {
+	if _, err := Run(root, "", model.FormatCurrent, Migrations, now); !errors.Is(err, ErrCurrent) {
 		t.Errorf("err = %v, want ErrCurrent", err)
 	}
 	if s := siblings(t, root); len(s) != 0 {
@@ -101,11 +101,11 @@ func TestUpgradeRefuses(t *testing.T) {
 	root := newDataset(t)
 
 	// Newer than the target: never downgrade.
-	if _, err := Run(root, 0, nil, now); err == nil {
+	if _, err := Run(root, "", 0, nil, now); err == nil {
 		t.Error("downgrade allowed")
 	}
 	// A missing step is found before anything is touched.
-	if _, err := Run(root, 3, map[int]Migration{1: nil}, now); err == nil || !strings.Contains(err.Error(), "no upgrade step from format 2") {
+	if _, err := Run(root, "", 3, map[int]Migration{1: nil}, now); err == nil || !strings.Contains(err.Error(), "no upgrade step from format 2") {
 		t.Errorf("err = %v", err)
 	}
 	if s := siblings(t, root); len(s) != 0 || format(t, root) != 1 {
@@ -117,7 +117,7 @@ func TestUpgradeRefuses(t *testing.T) {
 		t.Fatal(err)
 	}
 	var le *store.LockedError
-	if _, err := Run(root, 2, map[int]Migration{1: nil}, now); !errors.As(err, &le) {
+	if _, err := Run(root, "", 2, map[int]Migration{1: nil}, now); !errors.As(err, &le) {
 		t.Errorf("err = %v, want LockedError", err)
 	}
 	s.Close()
@@ -126,7 +126,7 @@ func TestUpgradeRefuses(t *testing.T) {
 func TestUpgradeFailureKeepsBackup(t *testing.T) {
 	root := newDataset(t)
 	boom := errors.New("boom")
-	_, err := Run(root, 3, map[int]Migration{1: nil, 2: func(string) error { return boom }}, now)
+	_, err := Run(root, "", 3, map[int]Migration{1: nil, 2: func(string) error { return boom }}, now)
 	if !errors.Is(err, boom) || !strings.Contains(err.Error(), "the original is in") {
 		t.Fatalf("err = %v", err)
 	}
@@ -136,5 +136,33 @@ func TestUpgradeFailureKeepsBackup(t *testing.T) {
 	}
 	if s := siblings(t, root); len(s) != 1 {
 		t.Errorf("backups: %v", s)
+	}
+}
+
+func TestUpgradeBackupDir(t *testing.T) {
+	root := newDataset(t)
+	for _, inside := range []string{root, filepath.Join(root, "users")} {
+		_, err := Run(root, inside, 2, map[int]Migration{1: nil}, now)
+		if err == nil || !strings.Contains(err.Error(), "inside the dataset") {
+			t.Errorf("backup in %s: err = %v", inside, err)
+		}
+	}
+	if s := siblings(t, root); len(s) != 0 || format(t, root) != 1 {
+		t.Errorf("touched the dataset: %v, format %d", s, format(t, root))
+	}
+
+	elsewhere := t.TempDir()
+	res, err := Run(root, elsewhere, 2, map[int]Migration{1: nil}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(elsewhere, "data.format-1.20260927T021500Z"); res.Backup != want {
+		t.Errorf("backup at %s, want %s", res.Backup, want)
+	}
+	if f := format(t, res.Backup); f != 1 {
+		t.Errorf("backup format %d", f)
+	}
+	if s := siblings(t, root); len(s) != 0 {
+		t.Errorf("made a backup beside the dataset too: %v", s)
 	}
 }
