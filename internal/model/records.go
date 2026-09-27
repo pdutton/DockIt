@@ -101,18 +101,19 @@ type User struct {
 // Task is a task record, including its comments,
 // projects/<pid>/tasks/<id>.yaml.
 type Task struct {
-	ID          string    `yaml:"id"`
-	Version     int       `yaml:"version"`
-	Title       string    `yaml:"title"`
-	Description string    `yaml:"description,omitempty"`
-	Creator     string    `yaml:"creator"`
-	Owner       string    `yaml:"owner"`
-	State       string    `yaml:"state"`
-	Substate    string    `yaml:"substate,omitempty"`
-	Priority    int       `yaml:"priority"`
-	Created     time.Time `yaml:"created"`
-	Modified    time.Time `yaml:"modified"`
-	Comments    []Comment `yaml:"comments,omitempty"`
+	ID            string    `yaml:"id"`
+	Version       int       `yaml:"version"`
+	Title         string    `yaml:"title"`
+	Description   string    `yaml:"description,omitempty"`
+	Creator       string    `yaml:"creator"`
+	Owner         string    `yaml:"owner"`
+	State         string    `yaml:"state"`
+	Substate      string    `yaml:"substate,omitempty"`
+	Priority      int       `yaml:"priority"`
+	Created       time.Time `yaml:"created"`
+	Modified      time.Time `yaml:"modified"`
+	LastCommentID int       `yaml:"last_comment_id,omitempty"` // highest comment ID ever used
+	Comments      []Comment `yaml:"comments,omitempty"`
 }
 
 // Comment is a comment on a task.  Its ID is a per-task sequence that is
