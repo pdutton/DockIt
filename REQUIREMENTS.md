@@ -81,7 +81,17 @@ The project description should allow markdown content.
 
 #### URLs
 
-This property is optional, including one primary URL and zero or more additional URLs.
+This property is optional: zero or more URLs.  Each URL has a type, chosen from a static list
+built into DockIt.  The list will expand over time, but assume existing entries will not be removed.
+
+The initial list:
+
+- Code
+- Documentation
+- Website
+
+The dataset will reference these by immutable id/value, but these values may be mapped to a
+friendly display string that may change over time.
 
 ### User
 
