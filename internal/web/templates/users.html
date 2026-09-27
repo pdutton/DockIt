@@ -1,0 +1,20 @@
+{{define "content"}}
+<div class="heading">
+  <h1>Users</h1>
+  {{if isAdmin .Me}}<a class="button" href="/users/new">New user</a>{{end}}
+</div>
+<table>
+  <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+  <tbody>
+  {{range .Data}}
+    <tr{{if not .Active}} class="inactive"{{end}}>
+      <td>{{if isAdmin $.Me}}<a href="/users/{{.ID}}">{{.ID}}</a>{{else}}{{.ID}}{{end}}</td>
+      <td>{{.Name}}</td>
+      <td>{{.Email}}</td>
+      <td>{{role .Role}}</td>
+      <td>{{if .Active}}Active{{else}}Deactivated{{end}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}

@@ -337,7 +337,12 @@ and a lock-out risk for little gain over one-way hashes.)
 - **REST:** `Authorization: Bearer <token>`.  Users create and revoke their own tokens in the Web UI.
   Tokens carry the user's role; there are no per-token scopes in version 1.
 - Deactivated users cannot log in, and their tokens stop working immediately.
-- Failed logins are rate-limited per user ID and per client address, in memory.
+- Failed logins are rate-limited per user ID and per client address, in memory: 5 per user and 20 per
+  address in 5 minutes.
+- Web sessions expire after 7 days without use.  A user logging in with a one-time password can reach only
+  the "my account" page until they choose their own password.
+- POSTs carrying a foreign `Origin` header are refused, which covers the login form, the one form sent
+  before a session (and so a CSRF token) exists.
 - Passwords are 8 to 256 characters.  There are no composition rules.
 - An admin can reset a user's password, which gives the user a new one-time password that must be changed
   at next login.  This is the recovery path for a forgotten password.

@@ -1,0 +1,71 @@
+{{define "content"}}
+{{$p := .Data.Project}}
+<div class="heading">
+  <h1><span class="id">{{$p.ID}}</span> {{$p.Name}}</h1>
+  {{if isAdmin .Me}}<a class="button secondary" href="/projects/{{$p.ID}}/edit">Edit project</a>{{end}}
+</div>
+<p class="meta">{{projectState $p.State}} · created {{time $p.Created}} · modified {{time $p.Modified}}</p>
+{{with $p.Description}}<div class="markdown">{{markdown .}}</div>{{end}}
+{{if $p.URLs}}
+<dl class="urls">
+  {{range urlTypes}}{{$list := index $p.URLs .ID}}{{if $list}}
+  <dt>{{.Display}}</dt>
+  {{range $list}}<dd><a href="{{.}}" rel="nofollow noopener" target="_blank">{{.}}</a></dd>{{end}}
+  {{end}}{{end}}
+</dl>
+{{end}}
+
+<div class="heading">
+  <h2>Tasks</h2>
+  {{if canEdit .Me}}<a class="button" href="/projects/{{$p.ID}}/tasks/new">New task</a>{{end}}
+</div>
+
+<form method="get" class="filters">
+  <label>State
+    <select name="state">
+      <option value="">Any</option>
+      {{range taskStates}}<option value="{{.ID}}"{{if eq .ID $.Data.Filter.State}} selected{{end}}>{{.Display}}</option>{{end}}
+    </select>
+  </label>
+  <label>Owner
+    <select name="owner">
+      <option value="">Anyone</option>
+      {{range .Data.Users}}<option value="{{.ID}}"{{if eq .ID $.Data.Filter.Owner}} selected{{end}}>{{.Name}}</option>{{end}}
+    </select>
+  </label>
+  <label>Priority
+    <select name="priority">
+      <option value="">Any</option>
+      {{range priorities}}<option value="{{.}}"{{if eq . $.Data.Filter.Priority}} selected{{end}}>{{.}}</option>{{end}}
+    </select>
+  </label>
+  <label>Sort by
+    <select name="sort">
+      <option value="">Number</option>
+      <option value="priority"{{if eq .Data.Sort "priority"}} selected{{end}}>Priority</option>
+      <option value="modified"{{if eq .Data.Sort "modified"}} selected{{end}}>Recently modified</option>
+    </select>
+  </label>
+  <button type="submit" class="secondary">Show</button>
+</form>
+
+{{if .Data.Tasks}}
+<table>
+  <thead><tr><th>ID</th><th>Title</th><th>Owner</th><th>State</th><th>Priority</th><th>Modified</th></tr></thead>
+  <tbody>
+  {{range .Data.Tasks}}
+    <tr>
+      <td><a href="/tasks/{{.ID}}">{{.ID}}</a></td>
+      <td><a href="/tasks/{{.ID}}">{{.Title}}</a></td>
+      <td>{{.Owner}}</td>
+      <td>{{taskState .State}}{{if .Substate}} ({{substate .State .Substate}}){{end}}</td>
+      <td class="num">{{.Priority}}</td>
+      <td>{{time .Modified}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p>No tasks match.</p>
+{{end}}
+{{end}}

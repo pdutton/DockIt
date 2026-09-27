@@ -1,0 +1,51 @@
+{{define "content"}}
+{{$d := .Data}}
+<h1>{{.Title}}</h1>
+{{with $d.Conflict}}
+<div class="conflict">
+  <p><strong>Someone else changed this user while you were editing.</strong>
+  Their version: {{.Name}}, {{.Email}}, {{role .Role}}, {{if .Active}}active{{else}}deactivated{{end}}.
+  Your changes are still in the form; submit again to replace theirs.</p>
+</div>
+{{end}}
+<form method="post" action="{{if $d.New}}/users{{else}}/users/{{$d.Form.ID}}{{end}}" class="card">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="version" value="{{$d.Form.Version}}">
+  {{if $d.New}}
+  <label>User ID <span class="hint">used to log in; 2–32 characters, a–z then a–z, 0–9, “.”, “_” or “-”; cannot be changed later</span>
+    <input name="id" value="{{$d.Form.ID}}" required pattern="[a-z][a-z0-9._\-]{1,31}" autocapitalize="none">
+    {{with $d.Errors.id}}<span class="error">{{.}}</span>{{end}}
+  </label>
+  {{end}}
+  <label>Name
+    <input name="name" value="{{$d.Form.Name}}" required maxlength="100">
+    {{with $d.Errors.name}}<span class="error">{{.}}</span>{{end}}
+  </label>
+  <label>Email
+    <input name="email" type="email" value="{{$d.Form.Email}}" required>
+    {{with $d.Errors.email}}<span class="error">{{.}}</span>{{end}}
+  </label>
+  <label>Role
+    <select name="role">
+      {{range roles}}<option value="{{.ID}}"{{if eq .ID $d.Form.Role}} selected{{end}}>{{.Display}}</option>{{end}}
+    </select>
+    {{with $d.Errors.role}}<span class="error">{{.}}</span>{{end}}
+  </label>
+  {{if not $d.New}}
+  <label class="check"><input type="checkbox" name="active"{{if $d.Form.Active}} checked{{end}}> Active</label>
+  {{with $d.Errors.active}}<span class="error">{{.}}</span>{{end}}
+  {{end}}
+  <div class="actions">
+    <button type="submit">{{if $d.New}}Create user{{else}}Save{{end}}</button>
+    <a href="/users">Cancel</a>
+  </div>
+</form>
+{{if not $d.New}}
+<form method="post" action="/users/{{$d.Form.ID}}/password" class="card">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p>If {{$d.Form.Name}} has forgotten their password, give them a new one-time password.
+  Their current password stops working at once.</p>
+  <button type="submit" class="secondary">Reset password</button>
+</form>
+{{end}}
+{{end}}
