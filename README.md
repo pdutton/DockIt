@@ -70,7 +70,7 @@ only once.
 |------------------|------------------------------------------------------------------|
 | `dockit unlock`  | Remove a stale lock left by an instance that is no longer running. Shows who holds the lock and asks first; `-yes` skips the question. |
 | `dockit check`   | Validate a dataset: file names match IDs, required fields are present, and references between records resolve. Safe to run while DockIt is running. `-q` prints errors only. Exits 1 if there are errors. |
-| `dockit upgrade` | Migrate a dataset to the format this DockIt uses, after copying the whole dataset to a backup directory beside it (for example `data.format-1.20260927T021500Z`). `serve` never upgrades on its own; it asks you to run this. |
+| `dockit upgrade` | Migrate a dataset to the format this DockIt uses, after copying the whole dataset to a backup directory beside it (for example `data.format-1.20260927T021500Z`), or inside the directory given with `-backup`. `serve` never upgrades on its own; it asks you to run this. |
 | `dockit version` | Print the build version and the dataset format it supports.      |
 
 Run `dockit <command> -h` for a command's flags.
@@ -192,26 +192,23 @@ With a host directory, copy the directory as described in [Your data](#your-data
 ### Upgrade
 
 Build or pull the new image, stop DockIt, and run `upgrade`. It copies the
-dataset to a backup directory beside the dataset directory before changing
-anything, and in the container that would be `/`, which is neither writable nor
-kept. So mount a second volume to hold the backup, with the dataset inside it:
+dataset to a backup directory before changing anything. By default that goes
+beside the dataset directory, which in the container is `/`, neither writable nor
+kept, so give it a second volume with `-backup`:
 
 ```sh
 podman stop dockit && podman rm dockit
 podman volume create dockit-backups
-podman run --rm -v dockit-backups:/backup:U -v dockit-data:/backup/data dockit upgrade /backup/data
+podman run --rm -v dockit-data:/data -v dockit-backups:/backup dockit upgrade -backup /backup
 podman run --rm -v dockit-data:/data dockit check
 ```
 
-The backup lands in the `dockit-backups` volume, named for example
+The image's `/backup` is owned by its user, so a new named volume there is
+writable. The backup lands in the `dockit-backups` volume, named for example
 `data.format-1.20260927T021500Z`. Remove it once you are happy with the result,
-then start DockIt from the new image as before. With a host directory, mount its
-parent instead, so the backup lands beside it on the host. The parent must be
-writable by the container user too, which `--userns=keep-id` gives you:
-
-```sh
-podman run --rm --userns=keep-id:uid=65532,gid=65532 -v /srv/dockit:/srv/dockit:Z dockit upgrade /srv/dockit/data
-```
+then start DockIt from the new image as before. With a host directory, point
+`-backup` at a second host directory, mounted and owned the same way as the
+dataset.
 
 ## Development
 

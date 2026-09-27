@@ -135,7 +135,8 @@ created: 2026-09-26T21:54:43Z
   - equal: run.
   - older but upgradeable: refuse to serve and tell the operator to run `dockit upgrade`, which rewrites
     the dataset to the current format in place, after writing a full copy to a sibling backup directory
-    named for the old format and the time, such as `data.format-1.20260927T021500Z`.  Migrations run one
+    named for the old format and the time, such as `data.format-1.20260927T021500Z`.  `-backup <dir>`
+    puts that directory elsewhere, which a container needs because the dataset's parent is `/`.  Migrations run one
     format at a time, and `dockit.yaml` records each step as it completes, so a failed upgrade leaves the
     dataset in the last good format with the original still in the backup.
   - newer than supported: refuse to run.  This is what "portable between installs of sufficient version"

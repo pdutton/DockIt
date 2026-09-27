@@ -17,13 +17,14 @@ COPY cmd ./cmd
 COPY internal ./internal
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/dockit ./cmd/dockit
-# The volume mount point, owned by the distroless nonroot user, so a new named
-# volume starts out writable by it.
-RUN mkdir -p /out/data && chown 65532:65532 /out/data
+# The dataset and upgrade backup mount points, owned by the distroless nonroot
+# user, so a new named volume mounted on either starts out writable by it.
+RUN mkdir -p /out/data /out/backup && chown 65532:65532 /out/data /out/backup
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/dockit /usr/local/bin/dockit
 COPY --from=build --chown=65532:65532 /out/data /data
+COPY --from=build --chown=65532:65532 /out/backup /backup
 USER 65532:65532
 ENV DOCKIT_DATA=/data \
     DOCKIT_LISTEN=:8080
