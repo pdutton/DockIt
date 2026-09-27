@@ -93,6 +93,126 @@ tool can read it. See [DESIGN.md](DESIGN.md#dataset) for the layout and formats.
 - Keep the dataset on a local disk, or a network filesystem with reliable
   exclusive file creation, which the lock file depends on.
 
+## Run DockIt in a container
+
+The image holds the static `dockit` binary and nothing else, on
+`gcr.io/distroless/static-debian12:nonroot`. It runs as the non-root user
+65532, keeps its dataset in the volume `/data`, and listens on port 8080. The
+entrypoint is `dockit` and the default command is `serve`, so any other command
+goes after the image name. These examples use rootless podman; docker works the
+same way.
+
+### Build the image
+
+```sh
+podman build --build-arg VERSION=$(git describe --tags --always --dirty) -t dockit .
+```
+
+`VERSION` is what `dockit version` prints. The build compiles with
+`CGO_ENABLED=0` in a Go container, so the host needs no Go install.
+
+### Create a dataset
+
+Use a named volume, which podman makes writable by the image's user:
+
+```sh
+podman volume create dockit-data
+podman run --rm -v dockit-data:/data dockit init -admin pdutton -name "Peter Dutton" -email peter@example.com
+```
+
+Note the one-time password it prints.
+
+### Start and stop DockIt
+
+```sh
+podman run -d --name dockit --stop-timeout 15 -p 8080:8080 -v dockit-data:/data dockit
+```
+
+Then open `http://localhost:8080/` and log in. `podman stop dockit` sends
+SIGTERM; DockIt finishes in-flight requests for up to 10 seconds, then removes
+`dockit.lock` and exits. Podman's default wait before SIGKILL is also 10
+seconds, so `--stop-timeout 15` gives DockIt time to release the lock. If it is
+killed anyway, the next start refuses because the dataset is locked; run
+`podman run --rm -it -v dockit-data:/data dockit unlock` once you are sure no
+other instance is running (`-it` lets it ask you first).
+
+Run only one `serve` per volume. A second one refuses to start because the
+dataset is locked, which is the intended guard. Other commands run in a
+throwaway container against the same volume; `check` is safe while DockIt runs:
+
+```sh
+podman run --rm -v dockit-data:/data dockit check
+```
+
+The image sets these environment variables; the other flags in
+[Start DockIt](#start-dockit) work as `-e` settings too.
+
+| Environment       | Image value | Purpose                                            |
+|-------------------|-------------|----------------------------------------------------|
+| `DOCKIT_DATA`     | `/data`     | The dataset directory, the volume mount point.     |
+| `DOCKIT_LISTEN`   | `:8080`     | Listen on every interface. The program's default, `localhost:8080`, cannot be reached from outside the container. |
+| `DOCKIT_BASE_URL` | not set     | In the cloud, a reverse proxy terminates TLS; set `-e DOCKIT_BASE_URL=https://dockit.example.com` so the login cookie is marked Secure. |
+
+### Use a host directory instead of a volume
+
+A directory bind-mounted from the host must be writable by user 65532 inside
+the container. With rootless podman your own user is root inside the container,
+not 65532, so a plain bind mount fails with `permission denied`. Either map your
+user to 65532, which keeps the files owned by you on the host:
+
+```sh
+podman run -d --name dockit --stop-timeout 15 -p 8080:8080 \
+  --userns=keep-id:uid=65532,gid=65532 -v /srv/dockit/data:/data:Z dockit
+```
+
+or hand the directory to that user once with
+`podman unshare chown -R 65532:65532 /srv/dockit/data`, after which you edit it
+through `podman unshare`. On SELinux hosts (Fedora, RHEL) add `:Z` to the
+mount, as above, so the container may use the directory.
+
+### Back up and restore
+
+A backup is a copy of the volume without `dockit.lock`; it is safe to take
+while DockIt runs. For a named volume:
+
+```sh
+podman unshare tar -C "$(podman volume inspect dockit-data --format '{{.Mountpoint}}')" \
+  --exclude=./dockit.lock --exclude='.*.tmp' -cf dockit-backup.tar .
+```
+
+To restore, stop DockIt and load the copy into a new, empty volume:
+
+```sh
+podman volume create dockit-restored
+podman volume import dockit-restored dockit-backup.tar
+```
+
+With a host directory, copy the directory as described in [Your data](#your-data).
+
+### Upgrade
+
+Build or pull the new image, stop DockIt, and run `upgrade`. It copies the
+dataset to a backup directory beside the dataset directory before changing
+anything, and in the container that would be `/`, which is neither writable nor
+kept. So mount a second volume to hold the backup, with the dataset inside it:
+
+```sh
+podman stop dockit && podman rm dockit
+podman volume create dockit-backups
+podman run --rm -v dockit-backups:/backup:U -v dockit-data:/backup/data dockit upgrade /backup/data
+podman run --rm -v dockit-data:/data dockit check
+```
+
+The backup lands in the `dockit-backups` volume, named for example
+`data.format-1.20260927T021500Z`. Remove it once you are happy with the result,
+then start DockIt from the new image as before. With a host directory, mount its
+parent instead, so the backup lands beside it on the host. The parent must be
+writable by the container user too, which `--userns=keep-id` gives you:
+
+```sh
+podman run --rm --userns=keep-id:uid=65532,gid=65532 -v /srv/dockit:/srv/dockit:Z dockit upgrade /srv/dockit/data
+```
+
 ## Development
 
 ```sh

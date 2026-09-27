@@ -1,0 +1,7 @@
+# The build needs only the Go module; leave out everything else (git history,
+# local datasets, editor and agent files).
+*
+!go.mod
+!go.sum
+!cmd/
+!internal/
