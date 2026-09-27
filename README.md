@@ -107,7 +107,7 @@ same way.
 ```sh
 VERSION=$(git describe --tags --always --dirty)
 podman build --build-arg VERSION=$VERSION -t dockit:$VERSION .
-podman tag dockit:$VERSION latest
+podman tag dockit:$VERSION dockit:latest
 ```
 
 `VERSION` is what `dockit version` prints. The build compiles with
