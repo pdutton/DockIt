@@ -159,18 +159,37 @@ The image sets these environment variables; the other flags in
 
 A directory bind-mounted from the host must be writable by user 65532 inside
 the container. With rootless podman your own user is root inside the container,
-not 65532, so a plain bind mount fails with `permission denied`. Either map your
-user to 65532, which keeps the files owned by you on the host:
+not 65532, so a plain bind mount fails with `permission denied`. Map your user
+to 65532 with `--userns=keep-id:uid=65532,gid=65532`, which keeps the files
+owned by you on the host. On SELinux hosts (Fedora, RHEL) the `:Z` on the mount
+lets the container use the directory.
+
+Podman does not create a missing host directory, so make it first:
 
 ```sh
-podman run --rm -d --name dockit --stop-timeout 15 -p 8080:8080 \
-  --userns=keep-id:uid=65532,gid=65532 -v /srv/dockit/data:/data:Z dockit
+DOCKIT_DIR=/srv/dockit/data
+mkdir -p $DOCKIT_DIR
 ```
 
-or hand the directory to that user once with
-`podman unshare chown -R 65532:65532 /srv/dockit/data`, after which you edit it
-through `podman unshare`. On SELinux hosts (Fedora, RHEL) add `:Z` to the
-mount, as above, so the container may use the directory.
+Then create the dataset, start DockIt, and stop it as with a volume:
+
+```sh
+podman run --rm --userns=keep-id:uid=65532,gid=65532 -v $DOCKIT_DIR:/data:Z \
+  dockit init -admin pdutton -name "Peter Dutton" -email peter@example.com
+podman run --rm -d --name dockit --stop-timeout 15 -p 8080:8080 \
+  --userns=keep-id:uid=65532,gid=65532 -v $DOCKIT_DIR:/data:Z dockit serve
+podman stop dockit
+```
+
+Every other command needs the same `--userns` and mount, for example `check`:
+
+```sh
+podman run --rm --userns=keep-id:uid=65532,gid=65532 -v $DOCKIT_DIR:/data:Z dockit check
+```
+
+Instead of mapping your user, you can hand the directory to user 65532 once
+with `podman unshare chown -R 65532:65532 $DOCKIT_DIR` and leave out `--userns`;
+after that you edit it through `podman unshare`.
 
 ### Back up and restore
 
