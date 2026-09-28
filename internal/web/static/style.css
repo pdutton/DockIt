@@ -58,6 +58,10 @@ th, td { text-align: left; padding: 0.45rem 0.5rem; border-bottom: 1px solid var
 th { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
 td.num { text-align: right; }
 tr.inactive td { color: var(--muted); }
+table.tasks th, table.tasks td { white-space: nowrap; }
+table.tasks .title { white-space: normal; width: 100%; min-width: 14rem; }
+.type { color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+.type abbr { text-decoration: none; }
 @media (max-width: 40rem) {
   table { display: block; overflow-x: auto; }
 }

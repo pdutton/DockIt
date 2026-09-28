@@ -1,12 +1,25 @@
 // Show timestamps, sent in UTC, in the browser's local time.  Without
 // JavaScript the UTC text stays, which is still correct.
+//
+// A time with class "short" is in a list, where width matters: it drops the
+// year when it is this year, and the time of day otherwise.  Its tooltip has
+// the full local time.
 document.addEventListener("DOMContentLoaded", () => {
-  const fmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+  const full = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+  const thisYear = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const otherYear = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+  const year = new Date().getFullYear();
   for (const el of document.querySelectorAll("time[datetime]")) {
     const d = new Date(el.getAttribute("datetime"));
-    if (!isNaN(d)) {
+    if (isNaN(d)) {
+      continue;
+    }
+    if (el.classList.contains("short")) {
+      el.title = full.format(d);
+      el.textContent = (d.getFullYear() === year ? thisYear : otherYear).format(d);
+    } else {
       el.title = el.textContent;
-      el.textContent = fmt.format(d);
+      el.textContent = full.format(d);
     }
   }
 });
