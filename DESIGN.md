@@ -151,6 +151,7 @@ Format history:
 | 1      | The first format (DockIt 1.0.5 and earlier).                           |
 | 2      | Task `type`, required.  The upgrade gives every existing task `task`.  |
 |        | Task `found_in` and `resolved_in`, optional.                           |
+|        | Task `urls`, optional, with the task URL type `pr`.                    |
 
 ### Record formats
 
@@ -206,6 +207,9 @@ substate: done
 priority: 3
 found_in: 1.0.3                 # optional; version the issue was found or introduced in
 resolved_in: 1.1.0              # optional; version it was resolved in
+urls:                           # optional; map of task URL type -> ordered list
+  pr:
+    - https://github.com/example/site/pull/7
 created: 2026-09-26T21:54:43Z
 modified: 2026-09-27T09:00:00Z
 last_comment_id: 1              # optional; highest comment id ever used
@@ -228,7 +232,8 @@ Notes:
   comment is removed from the file.  Because deleting the newest comment would otherwise let its id be
   reused, the task keeps `last_comment_id`, and the next id is one more than the larger of that and the
   highest id present.
-- Project `urls` is keyed by URL type.  Order within each list is significant, so the first URL of a
+- Project and task `urls` are keyed by URL type: project URL types for projects, task URL types for
+  tasks.  Order within each list is significant, so the first URL of a
   type is its primary.  Order between types is not significant; keys are written in the enumeration's
   built-in order and empty lists are omitted.  The REST API uses the same shape.
 - The task's project is implied by its ID prefix and its directory; it is not stored separately.
@@ -259,6 +264,7 @@ Built into the implementation as a table of stable id → display string:
 | Substate      | `complete`: `done`, `rejected`                         |
 | Task type     | `bugfix`, `enhancement`, `feature`, `task`, `documentation`, `research` (displayed as Bug Fix, Enhancement, Feature, Task, Documentation, Research) |
 | URL type      | `code`, `doc`, `web` (displayed as Code, Documentation, Website) |
+| Task URL type | `pr` (displayed as Pull Requests)                      |
 | Role          | see [Roles and Permissions](#roles-and-permissions)    |
 
 - A task's `substate` is required if and only if its state has substates.  On a transition out of such a
@@ -466,7 +472,7 @@ GET    /api/v1/me/tokens                        list own tokens (metadata only)
 POST   /api/v1/me/tokens                        create; token returned once
 DELETE /api/v1/me/tokens/{id}                   revoke
 
-GET    /api/v1/enums                            states, substates, task types, roles, display strings
+GET    /api/v1/enums                            states, substates, task types, URL types, roles, display strings
 ```
 
 - `PATCH` bodies are JSON Merge Patch (RFC 7396).
@@ -489,7 +495,7 @@ Enforced in the service layer, identically for both interfaces:
 | User name                 | required, 1–100 characters                         |
 | Email                     | required, syntactically valid; need not be unique  |
 | Markdown fields           | optional, up to 64 KiB                             |
-| URLs                      | absolute `http`/`https`, up to 2 KiB each; key must be a known URL type |
+| URLs                      | absolute `http`/`https`, up to 2 KiB each; key must be a known URL type for a project, or task URL type for a task |
 | Priority                  | integer 1–5, default 3                             |
 | Task type                 | a known type, default `task`                       |
 | Found in, resolved in     | optional, up to 50 characters, no control characters; free-form, so any versioning scheme works |

@@ -78,9 +78,12 @@ func readProjectForm(r *http.Request) projectForm {
 }
 
 // urls parses the one-per-line URL fields.
-func (f projectForm) urls() model.URLs {
+func (f projectForm) urls() model.URLs { return parseURLs(f.URLs) }
+
+// parseURLs parses one-per-line URL fields, keyed by URL type.
+func parseURLs(fields map[string]string) model.URLs {
 	out := model.URLs{}
-	for typ, text := range f.URLs {
+	for typ, text := range fields {
 		for _, line := range strings.Split(text, "\n") {
 			if line = strings.TrimSpace(line); line != "" {
 				out[typ] = append(out[typ], line)
@@ -247,15 +250,21 @@ type taskForm struct {
 	Priority    int
 	FoundIn     string
 	ResolvedIn  string
+	URLs        map[string]string // by URL type, one per line
 	Version     int
 }
 
 func taskFormFrom(t *model.Task) taskForm {
-	return taskForm{t.Title, t.Type, t.Description, t.Owner, t.State, t.Substate, t.Priority, t.FoundIn, t.ResolvedIn, t.Version}
+	f := taskForm{t.Title, t.Type, t.Description, t.Owner, t.State, t.Substate, t.Priority,
+		t.FoundIn, t.ResolvedIn, map[string]string{}, t.Version}
+	for k, v := range t.URLs {
+		f.URLs[k] = strings.Join(v, "\n")
+	}
+	return f
 }
 
 func readTaskForm(r *http.Request) taskForm {
-	return taskForm{
+	f := taskForm{
 		Title:       r.PostForm.Get("title"),
 		Type:        r.PostForm.Get("type"),
 		Description: normalizeNewlines(r.PostForm.Get("description")),
@@ -265,8 +274,13 @@ func readTaskForm(r *http.Request) taskForm {
 		Priority:    formInt(r, "priority"),
 		FoundIn:     strings.TrimSpace(r.PostForm.Get("found_in")),
 		ResolvedIn:  strings.TrimSpace(r.PostForm.Get("resolved_in")),
+		URLs:        map[string]string{},
 		Version:     formInt(r, "version"),
 	}
+	for _, t := range model.TaskURLTypes.Values() {
+		f.URLs[t.ID] = r.PostForm.Get("urls_" + t.ID)
+	}
+	return f
 }
 
 // activeUsers lists users who may be chosen as owner, plus current, who may
@@ -317,7 +331,7 @@ func (w *Web) taskCreate(rw http.ResponseWriter, r *http.Request, c *ctx) error 
 	t, err := w.svc.CreateTask(c.me.ID, pid, service.NewTask{
 		Title: f.Title, Type: f.Type, Description: f.Description, Owner: f.Owner,
 		State: f.State, Substate: f.Substate, Priority: f.Priority,
-		FoundIn: f.FoundIn, ResolvedIn: f.ResolvedIn,
+		FoundIn: f.FoundIn, ResolvedIn: f.ResolvedIn, URLs: parseURLs(f.URLs),
 	})
 	if err != nil {
 		fields, _, ok := formErrors(err)
@@ -387,10 +401,11 @@ func (w *Web) taskView(rw http.ResponseWriter, r *http.Request, c *ctx) error {
 func (w *Web) taskUpdate(rw http.ResponseWriter, r *http.Request, c *ctx) error {
 	tid := r.PathValue("tid")
 	f := readTaskForm(r)
+	urls := parseURLs(f.URLs)
 	_, err := w.svc.UpdateTask(c.me.ID, tid, f.Version, service.TaskPatch{
 		Title: &f.Title, Type: &f.Type, Description: &f.Description, Owner: &f.Owner,
 		State: &f.State, Substate: &f.Substate, Priority: &f.Priority,
-		FoundIn: &f.FoundIn, ResolvedIn: &f.ResolvedIn,
+		FoundIn: &f.FoundIn, ResolvedIn: &f.ResolvedIn, URLs: &urls,
 	})
 	if err != nil {
 		fields, current, ok := formErrors(err)

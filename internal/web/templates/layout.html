@@ -86,4 +86,10 @@
     {{with .Errors.resolved_in}}<span class="error">{{.}}</span>{{end}}
   </label>
 </div>
+{{range taskURLTypes}}
+<label>{{.Display}} <span class="hint">URLs, one per line</span>
+  <textarea name="urls_{{.ID}}" rows="2">{{index $.Form.URLs .ID}}</textarea>
+</label>
+{{end}}
+{{with .Errors.urls}}<span class="error">{{.}}</span>{{end}}
 {{end}}

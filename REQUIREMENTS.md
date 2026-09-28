@@ -224,3 +224,13 @@ Existing tasks, from before types were added, become Task when the dataset is up
 
 Two optional versions: the version in which the issue was found or introduced, and the version
 in which it was resolved.  These are free-form text, such as `1.0.5`, so any versioning scheme works.
+
+#### URLs
+
+This property is optional: zero or more URLs, like a project's.  Each URL has a type, chosen from a
+static list built into DockIt that is separate from the project list.  The list will expand over
+time, but assume existing entries will not be removed.
+
+The initial list:
+
+- Pull Requests

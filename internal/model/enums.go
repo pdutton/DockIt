@@ -91,6 +91,8 @@ const (
 	URLCode = "code"
 	URLDoc  = "doc"
 	URLWeb  = "web"
+
+	URLPR = "pr" // tasks only
 )
 
 // Roles.
@@ -139,6 +141,12 @@ var (
 		EnumValue{URLCode, "Code"},
 		EnumValue{URLDoc, "Documentation"},
 		EnumValue{URLWeb, "Website"},
+	)
+
+	// TaskURLTypes are the URL types a task may have.  URLTypes are for
+	// projects.
+	TaskURLTypes = newEnum("task URL type",
+		EnumValue{URLPR, "Pull Requests"},
 	)
 
 	Roles = newEnum("role",
