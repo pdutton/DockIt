@@ -25,26 +25,29 @@
     <legend>State</legend>
     {{range taskStates}}<label class="check"><input type="checkbox" name="state" value="{{.ID}}"{{if $.Data.StateShown .ID}} checked{{end}}> {{.Display}}</label>{{end}}
   </fieldset>
-  <label>Owner
-    <select name="owner">
-      <option value="">Anyone</option>
-      {{range .Data.Users}}<option value="{{.ID}}"{{if eq .ID $.Data.Filter.Owner}} selected{{end}}>{{.Name}}</option>{{end}}
-    </select>
-  </label>
-  <label>Priority
-    <select name="priority">
-      <option value="">Any</option>
-      {{range priorities}}<option value="{{.}}"{{if eq . $.Data.Filter.Priority}} selected{{end}}>{{.}}</option>{{end}}
-    </select>
-  </label>
-  <label>Sort by
-    <select name="sort">
-      <option value="">Number</option>
-      <option value="priority"{{if eq .Data.Sort "priority"}} selected{{end}}>Priority</option>
-      <option value="modified"{{if eq .Data.Sort "modified"}} selected{{end}}>Recently modified</option>
-    </select>
-  </label>
-  <button type="submit" class="secondary">Show</button>
+  {{/* The controls wrap as one group, so they never split across lines. */}}
+  <div class="controls">
+    <label>Owner
+      <select name="owner">
+        <option value="">Anyone</option>
+        {{range .Data.Users}}<option value="{{.ID}}"{{if eq .ID $.Data.Filter.Owner}} selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <label>Priority
+      <select name="priority">
+        <option value="">Any</option>
+        {{range priorities}}<option value="{{.}}"{{if eq . $.Data.Filter.Priority}} selected{{end}}>{{.}}</option>{{end}}
+      </select>
+    </label>
+    <label>Sort by
+      <select name="sort">
+        <option value="">Number</option>
+        <option value="priority"{{if eq .Data.Sort "priority"}} selected{{end}}>Priority</option>
+        <option value="modified"{{if eq .Data.Sort "modified"}} selected{{end}}>Recently modified</option>
+      </select>
+    </label>
+    <button type="submit" class="secondary">Show</button>
+  </div>
 </form>
 
 {{if .Data.Tasks}}
