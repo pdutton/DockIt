@@ -19,11 +19,11 @@ var ts2 = time.Date(2026, 9, 27, 8, 10, 0, 0, time.UTC)
 
 func testAdmin() (*model.User, *model.Auth) {
 	return &model.User{
-		ID: "pdutton", Version: 1, Name: "Peter Dutton", Email: "peter@example.com",
-		Role: model.RoleAdmin, Active: true, Created: ts1, Modified: ts1,
-	}, &model.Auth{
-		User: "pdutton", Password: "$argon2id$v=19$m=65536,t=3,p=4$c2FsdA$a2V5", MustChangePassword: true,
-	}
+			ID: "pdutton", Version: 1, Name: "Peter Dutton", Email: "peter@example.com",
+			Role: model.RoleAdmin, Active: true, Created: ts1, Modified: ts1,
+		}, &model.Auth{
+			User: "pdutton", Password: "$argon2id$v=19$m=65536,t=3,p=4$c2FsdA$a2V5", MustChangePassword: true,
+		}
 }
 
 // newDataset creates a dataset in a temp dir and opens it.
