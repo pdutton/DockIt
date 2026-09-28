@@ -20,7 +20,7 @@ func TestFormat1To2(t *testing.T) {
 		// lines, blank lines, trailing spaces, and comments.
 		{ID: "WEB-2", Version: 4, Title: "yes: 123 # not a comment " + strings.Repeat("long ", 30),
 			Description: "Line one:  \n\n\t- tabbed\n'quoted' \"double\" ünïcode\n",
-			Creator: "admin", Owner: "admin", State: model.TaskComplete, Substate: model.SubstateDone,
+			Creator:     "admin", Owner: "admin", State: model.TaskComplete, Substate: model.SubstateDone,
 			Priority: 1, Created: now, Modified: now, LastCommentID: 3,
 			Comments: []model.Comment{{ID: 2, Version: 2, Commenter: "admin", Created: now, Modified: now, Text: "no"}}},
 	}
