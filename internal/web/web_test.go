@@ -349,7 +349,8 @@ func TestTasksAndComments(t *testing.T) {
 		t.Error("complete task shown by default")
 	}
 	// A submitted form with no state ticked shows every state, and ticks them all.
-	f.want(mem.get("/projects/WEB?sort="), 200, "Fix the logo", "<td>Bug Fix</td>", `value="complete" checked`, `value="deferred" checked`)
+	f.want(mem.get("/projects/WEB?sort="), 200, "Fix the logo",
+		`<span class="type"><abbr title="Bug Fix">BUG</abbr>:</span> <a href="/tasks/WEB-1">`, `<time class="short" datetime=`, `value="complete" checked`, `value="deferred" checked`)
 	f.want(mem.post("/tasks/WEB-1", "version", "1", "title", "Other title", "type", "task", "owner", "mem",
 		"state", "paused", "priority", "5"), 409, "Someone else changed this task", `value="Other title"`)
 

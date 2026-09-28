@@ -38,15 +38,17 @@ func parseTemplates(assets fs.FS) (map[string]*template.Template, error) {
 }
 
 var funcs = template.FuncMap{
-	"markdown": renderMarkdown,
-	"time":     timeTag,
+	"markdown":  renderMarkdown,
+	"time":      func(t time.Time) template.HTML { return timeTag(t, "") },
+	"shortTime": func(t time.Time) template.HTML { return timeTag(t, "short") },
 
-	"projectState": func(id string) template.HTML { return enumTag(model.ProjectStates, id) },
-	"taskState":    func(id string) template.HTML { return enumTag(model.TaskStates, id) },
-	"taskType":     func(id string) template.HTML { return enumTag(model.TaskTypes, id) },
-	"urlType":      func(id string) template.HTML { return enumTag(model.URLTypes, id) },
-	"taskURLType":  func(id string) template.HTML { return enumTag(model.TaskURLTypes, id) },
-	"role":         func(id string) template.HTML { return enumTag(model.Roles, id) },
+	"projectState":  func(id string) template.HTML { return enumTag(model.ProjectStates, id) },
+	"taskState":     func(id string) template.HTML { return enumTag(model.TaskStates, id) },
+	"taskType":      func(id string) template.HTML { return enumTag(model.TaskTypes, id) },
+	"taskTypeShort": taskTypeShort,
+	"urlType":       func(id string) template.HTML { return enumTag(model.URLTypes, id) },
+	"taskURLType":   func(id string) template.HTML { return enumTag(model.TaskURLTypes, id) },
+	"role":          func(id string) template.HTML { return enumTag(model.Roles, id) },
 	"substate": func(state, id string) template.HTML {
 		if e, ok := model.Substates[state]; ok {
 			return enumTag(e, id)
@@ -83,14 +85,42 @@ func enumTag(e *model.Enum, id string) template.HTML {
 		template.HTMLEscapeString(id)))
 }
 
-// timeTag renders a timestamp in UTC; app.js converts it to local time.
-func timeTag(t time.Time) template.HTML {
+// taskTypeAbbrevs are the task types' short names, which prefix titles in
+// task lists.
+var taskTypeAbbrevs = map[string]string{
+	model.TypeBugfix:        "BUG",
+	model.TypeEnhancement:   "ENH",
+	model.TypeFeature:       "FEAT",
+	model.TypeTask:          "TASK",
+	model.TypeDocumentation: "DOC",
+	model.TypeResearch:      "RES",
+}
+
+// taskTypeShort shows a task type by its short name, with the display string
+// as a tooltip.  A type with no short name falls back to enumTag.
+func taskTypeShort(id string) template.HTML {
+	d, ok := model.TaskTypes.Display(id)
+	short, known := taskTypeAbbrevs[id]
+	if !ok || !known {
+		return enumTag(model.TaskTypes, id)
+	}
+	return template.HTML(fmt.Sprintf(`<abbr title="%s">%s</abbr>`,
+		template.HTMLEscapeString(d), template.HTMLEscapeString(short)))
+}
+
+// timeTag renders a timestamp in UTC; app.js converts it to local time.  A
+// class of "short" asks app.js for the compact form used in lists.
+func timeTag(t time.Time, class string) template.HTML {
 	if t.IsZero() {
 		return ""
 	}
 	t = t.UTC()
-	return template.HTML(fmt.Sprintf(`<time datetime="%s">%s</time>`,
-		t.Format(time.RFC3339), t.Format("2006-01-02 15:04 UTC")))
+	attr := ""
+	if class != "" {
+		attr = fmt.Sprintf(` class="%s"`, class)
+	}
+	return template.HTML(fmt.Sprintf(`<time%s datetime="%s">%s</time>`,
+		attr, t.Format(time.RFC3339), t.Format("2006-01-02 15:04 UTC")))
 }
 
 // substateOption is a substate choice, labeled with its state.
