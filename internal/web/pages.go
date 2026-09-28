@@ -184,9 +184,10 @@ type projectViewData struct {
 	Sort    string
 }
 
-// StateShown reports whether the filter includes tasks in state id.
+// StateShown reports whether the filter includes tasks in state id.  No
+// states means every state.
 func (d projectViewData) StateShown(id string) bool {
-	return slices.Contains(d.Filter.States, id)
+	return len(d.Filter.States) == 0 || slices.Contains(d.Filter.States, id)
 }
 
 // openStates are the states a task list shows when first opened.
