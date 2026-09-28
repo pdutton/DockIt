@@ -216,5 +216,6 @@ The initial list:
 - Feature
 - Task
 - Documentation
+- Research
 
 Existing tasks, from before types were added, become Task when the dataset is upgraded.

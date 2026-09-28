@@ -254,7 +254,7 @@ Built into the implementation as a table of stable id → display string:
 | Project state | `planned`, `active`, `inactive`, `dormant`, `complete` |
 | Task state    | `new`, `in_progress`, `deferred`, `paused`, `complete` |
 | Substate      | `complete`: `done`, `rejected`                         |
-| Task type     | `bugfix`, `enhancement`, `feature`, `task`, `documentation` (displayed as Bug Fix, Enhancement, Feature, Task, Documentation) |
+| Task type     | `bugfix`, `enhancement`, `feature`, `task`, `documentation`, `research` (displayed as Bug Fix, Enhancement, Feature, Task, Documentation, Research) |
 | URL type      | `code`, `doc`, `web` (displayed as Code, Documentation, Website) |
 | Role          | see [Roles and Permissions](#roles-and-permissions)    |
 

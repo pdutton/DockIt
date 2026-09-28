@@ -424,7 +424,7 @@ func TestEnums(t *testing.T) {
 	types, _ := r.obj()["task_types"].([]any)
 	if len(subs["complete"].([]any)) != 2 || len(states) != 5 ||
 		states[1].(map[string]any)["display"] != "In Progress" ||
-		len(types) != 5 || types[0].(map[string]any)["display"] != "Bug Fix" {
+		len(types) != 6 || types[0].(map[string]any)["display"] != "Bug Fix" {
 		t.Errorf("enums = %s", r.body)
 	}
 }

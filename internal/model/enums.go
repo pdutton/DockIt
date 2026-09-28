@@ -83,6 +83,7 @@ const (
 	TypeFeature       = "feature"
 	TypeTask          = "task"
 	TypeDocumentation = "documentation"
+	TypeResearch      = "research"
 )
 
 // URL types.
@@ -122,6 +123,7 @@ var (
 		EnumValue{TypeFeature, "Feature"},
 		EnumValue{TypeTask, "Task"},
 		EnumValue{TypeDocumentation, "Documentation"},
+		EnumValue{TypeResearch, "Research"},
 	)
 
 	// Substates maps a task state to its substates.  A state that is absent
