@@ -321,7 +321,7 @@ func TestTasksAndComments(t *testing.T) {
 	}
 	f.want(mem.get("/projects/WEB?state=paused&state=new"), 200, "WEB-1",
 		`value="paused" checked`, `value="new" checked`, `value="complete">`)
-	f.want(mem.get("/projects/WEB?priority=3"), 200, "WEB-1", `<option value="3" selected>1 – 3</option>`)
+	f.want(mem.get("/projects/WEB?priority=3"), 200, "WEB-1", `<option value="3" selected>3</option>`)
 	if p := mem.get("/projects/WEB?priority=1"); strings.Contains(p.body, "Fix the logo") {
 		t.Error("priority 1 shows a priority 2 task")
 	}
