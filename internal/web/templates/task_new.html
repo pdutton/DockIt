@@ -2,6 +2,7 @@
 <h1>New task in <a href="/projects/{{.Data.Project.ID}}">{{.Data.Project.Name}}</a></h1>
 <form method="post" action="/projects/{{.Data.Project.ID}}/tasks" class="card">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="submission" value="{{.Submission}}">
   {{template "taskfields" .Data}}
   <div class="actions">
     <button type="submit">Create task</button>

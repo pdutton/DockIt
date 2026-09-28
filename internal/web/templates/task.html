@@ -30,6 +30,7 @@
   {{end}}
   <form method="post" action="/tasks/{{$t.ID}}">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="submission" value="{{.Submission}}">
     <input type="hidden" name="version" value="{{$d.Form.Version}}">
     {{template "taskfields" $d}}
     <div class="actions"><button type="submit">Save</button></div>
@@ -49,12 +50,14 @@
     <summary>Edit</summary>
     <form method="post" action="/tasks/{{$t.ID}}/comments/{{.ID}}">
       <input type="hidden" name="csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="submission" value="{{$.Submission}}">
       <input type="hidden" name="version" value="{{.Version}}">
       <textarea name="text" rows="4">{{if and $editing $d.Comment.Text}}{{$d.Comment.Text}}{{else}}{{.Text}}{{end}}</textarea>
       <div class="actions"><button type="submit">Save comment</button></div>
     </form>
     <form method="post" action="/tasks/{{$t.ID}}/comments/{{.ID}}/delete" class="inline">
       <input type="hidden" name="csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="submission" value="{{$.Submission}}">
       <input type="hidden" name="version" value="{{.Version}}">
       <button type="submit" class="danger">Delete comment</button>
     </form>
@@ -68,6 +71,7 @@
 {{if canEdit $me}}
 <form method="post" action="/tasks/{{$t.ID}}/comments" class="card">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="submission" value="{{.Submission}}">
   <label>Add a comment <span class="hint">Markdown</span>
     <textarea name="text" rows="4" required>{{if eq $d.Comment.ID 0}}{{$d.Comment.Text}}{{end}}</textarea>
   </label>

@@ -10,6 +10,7 @@
 {{end}}
 <form method="post" action="{{if $d.New}}/users{{else}}/users/{{$d.Form.ID}}{{end}}" class="card">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="submission" value="{{.Submission}}">
   <input type="hidden" name="version" value="{{$d.Form.Version}}">
   {{if $d.New}}
   <label>User ID <span class="hint">used to log in; 2–32 characters, a–z then a–z, 0–9, “.”, “_” or “-”; cannot be changed later</span>
@@ -43,6 +44,7 @@
 {{if not $d.New}}
 <form method="post" action="/users/{{$d.Form.ID}}/password" class="card">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="submission" value="{{.Submission}}">
   <p>If {{$d.Form.Name}} has forgotten their password, give them a new one-time password.
   Their current password stops working at once.</p>
   <button type="submit" class="secondary">Reset password</button>
