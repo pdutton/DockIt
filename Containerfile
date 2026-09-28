@@ -2,7 +2,7 @@
 #
 #   podman build --build-arg VERSION=$(git describe --tags --always --dirty) -t dockit .
 #
-# See "Run DockIt in a container" in README.md.
+# See "Run DockIt in a container" in README.md and OPERATIONS.md.
 
 ARG GO_VERSION=1.27
 
