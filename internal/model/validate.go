@@ -194,6 +194,19 @@ func (p *problems) add(errs ...*FieldError) {
 	}
 }
 
+// checkURLs checks URLs whose types come from types.
+func (p *problems) checkURLs(urls URLs, types *Enum) {
+	for _, typ := range sortedKeys(urls) {
+		field := "urls." + typ
+		if !types.Valid(typ) {
+			p.add(fieldWarn(field, "unknown %s %q", types.Name(), typ))
+		}
+		for i, u := range urls[typ] {
+			p.add(checkURL(fmt.Sprintf("%s[%d]", field, i), u))
+		}
+	}
+}
+
 // Validate checks the dataset metadata.
 func (m *Meta) Validate() []*FieldError {
 	var p problems
@@ -216,15 +229,7 @@ func (pr *Project) Validate() []*FieldError {
 		checkTime("created", pr.Created),
 		checkTime("modified", pr.Modified),
 	)
-	for _, typ := range sortedKeys(pr.URLs) {
-		field := "urls." + typ
-		if !URLTypes.Valid(typ) {
-			p.add(fieldWarn(field, "unknown %s %q", URLTypes.Name(), typ))
-		}
-		for i, u := range pr.URLs[typ] {
-			p.add(checkURL(fmt.Sprintf("%s[%d]", field, i), u))
-		}
-	}
+	p.checkURLs(pr.URLs, URLTypes)
 	return p
 }
 
@@ -283,6 +288,7 @@ func (t *Task) Validate() []*FieldError {
 		checkOptionalText("found_in", t.FoundIn, MaxVersionLen),
 		checkOptionalText("resolved_in", t.ResolvedIn, MaxVersionLen),
 	)
+	p.checkURLs(t.URLs, TaskURLTypes)
 
 	seen := make(map[int]bool, len(t.Comments))
 	for i := range t.Comments {

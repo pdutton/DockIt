@@ -2,6 +2,7 @@ package service
 
 import (
 	"cmp"
+	"maps"
 	"slices"
 
 	"github.com/pdutton/DockIt/internal/model"
@@ -18,6 +19,7 @@ type NewTask struct {
 	Priority    int // defaults to 3
 	FoundIn     string
 	ResolvedIn  string
+	URLs        model.URLs
 }
 
 // TaskPatch is the input for UpdateTask.  Nil fields are left as they are.
@@ -31,6 +33,7 @@ type TaskPatch struct {
 	Priority    *int
 	FoundIn     *string
 	ResolvedIn  *string
+	URLs        *model.URLs
 }
 
 // TaskFilter selects tasks.  Zero fields match everything.
@@ -119,6 +122,7 @@ func (s *Service) CreateTask(actor, pid string, in NewTask) (*model.Task, error)
 		Priority:    cmp.Or(in.Priority, model.DefaultPriority),
 		FoundIn:     in.FoundIn,
 		ResolvedIn:  in.ResolvedIn,
+		URLs:        compactURLs(in.URLs),
 		Created:     now,
 		Modified:    now,
 	}
@@ -165,6 +169,13 @@ func (s *Service) UpdateTask(actor, tid string, version int, patch TaskPatch) (*
 	set(&t.Priority, patch.Priority, "priority", changed)
 	set(&t.FoundIn, patch.FoundIn, "found_in", changed)
 	set(&t.ResolvedIn, patch.ResolvedIn, "resolved_in", changed)
+	if patch.URLs != nil {
+		before := t.URLs
+		t.URLs = compactURLs(*patch.URLs)
+		if !maps.EqualFunc(before, t.URLs, slices.Equal) {
+			changed["urls"] = true
+		}
+	}
 	if changed["state"] && patch.Substate == nil {
 		if _, hasSubs := model.Substates[t.State]; !hasSubs && t.Substate != "" {
 			t.Substate = ""

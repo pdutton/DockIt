@@ -135,15 +135,16 @@ func (a *API) getTask(w http.ResponseWriter, r *http.Request, actor string) erro
 
 func (a *API) createTask(w http.ResponseWriter, r *http.Request, actor string) error {
 	var in struct {
-		Title       string `json:"title"`
-		Type        string `json:"type"`
-		Description string `json:"description"`
-		Owner       string `json:"owner"`
-		State       string `json:"state"`
-		Substate    string `json:"substate"`
-		Priority    int    `json:"priority"`
-		FoundIn     string `json:"found_in"`
-		ResolvedIn  string `json:"resolved_in"`
+		Title       string     `json:"title"`
+		Type        string     `json:"type"`
+		Description string     `json:"description"`
+		Owner       string     `json:"owner"`
+		State       string     `json:"state"`
+		Substate    string     `json:"substate"`
+		Priority    int        `json:"priority"`
+		FoundIn     string     `json:"found_in"`
+		ResolvedIn  string     `json:"resolved_in"`
+		URLs        model.URLs `json:"urls"`
 	}
 	if err := readJSON(r, &in); err != nil {
 		return err
@@ -166,7 +167,7 @@ func (a *API) updateTask(w http.ResponseWriter, r *http.Request, actor string) e
 		return err
 	}
 	readOnly := append([]string{"creator", "comments", "last_comment_id"}, readOnlyRecord...)
-	if err := p.allow(readOnly, "title", "type", "description", "owner", "state", "substate", "priority", "found_in", "resolved_in"); err != nil {
+	if err := p.allow(readOnly, "title", "type", "description", "owner", "state", "substate", "priority", "found_in", "resolved_in", "urls"); err != nil {
 		return err
 	}
 	var patch service.TaskPatch
@@ -190,6 +191,19 @@ func (a *API) updateTask(w http.ResponseWriter, r *http.Request, actor string) e
 	}
 	if patch.Priority, err = optional[int](p, "priority", false); err != nil {
 		return err
+	}
+	if _, ok := p["urls"]; ok {
+		// As for projects, URLs merge into the current value.
+		cur, err := a.svc.Task(actor, r.PathValue("tid"))
+		if err != nil {
+			return err
+		}
+		if version != 0 && cur.Version != version {
+			return &service.ConflictError{Current: cur}
+		}
+		if patch.URLs, err = p.urls(cur.URLs); err != nil {
+			return err
+		}
 	}
 	t, err := a.svc.UpdateTask(actor, r.PathValue("tid"), version, patch)
 	if err != nil {
@@ -419,6 +433,7 @@ func (a *API) getEnums(w http.ResponseWriter, r *http.Request, actor string) err
 		"substates":      subs,
 		"task_types":     enumValues(model.TaskTypes),
 		"url_types":      enumValues(model.URLTypes),
+		"task_url_types": enumValues(model.TaskURLTypes),
 		"roles":          enumValues(model.Roles),
 	})
 	return nil

@@ -379,6 +379,53 @@ func TestTaskVersionFields(t *testing.T) {
 	}
 }
 
+func TestTaskURLs(t *testing.T) {
+	f := newFixture(t)
+	s := f.s
+	pr1, pr2 := "https://github.com/example/site/pull/1", "https://github.com/example/site/pull/2"
+
+	// Empty lists are dropped.
+	task, err := s.CreateTask("mem", "WEB", NewTask{Title: "T", URLs: model.URLs{model.URLPR: {}}})
+	f.ok(err)
+	if task.URLs != nil {
+		t.Errorf("urls = %v", task.URLs)
+	}
+	task, err = s.CreateTask("mem", "WEB", NewTask{Title: "T", URLs: model.URLs{model.URLPR: {pr1}}})
+	f.ok(err)
+	if got := task.URLs[model.URLPR]; len(got) != 1 || got[0] != pr1 {
+		t.Errorf("urls = %v", task.URLs)
+	}
+
+	// Project URL types are not task URL types, and URLs must be absolute.
+	_, err = s.CreateTask("mem", "WEB", NewTask{Title: "T", URLs: model.URLs{model.URLCode: {pr1}}})
+	wantInvalid(t, err, "urls.code")
+	_, err = s.UpdateTask("mem", "WEB-2", 1, TaskPatch{URLs: &model.URLs{model.URLPR: {"pull/2"}}})
+	wantInvalid(t, err, "urls.pr[0]")
+
+	// The returned task is a copy.
+	task.URLs[model.URLPR][0] = "https://changed.example"
+	if got, _ := s.Task("mem", "WEB-2"); got.URLs[model.URLPR][0] != pr1 {
+		t.Error("changing a returned task changed the stored one")
+	}
+
+	// An update replaces the list; the same list is no change.
+	task, err = s.UpdateTask("mem", "WEB-2", 1, TaskPatch{URLs: &model.URLs{model.URLPR: {pr1, pr2}}})
+	f.ok(err)
+	if task.Version != 2 || len(task.URLs[model.URLPR]) != 2 {
+		t.Errorf("task = %+v", task)
+	}
+	task, err = s.UpdateTask("mem", "WEB-2", 2, TaskPatch{URLs: &model.URLs{model.URLPR: {pr1, pr2}}})
+	f.ok(err)
+	if task.Version != 2 {
+		t.Errorf("unchanged URLs wrote a new version: %+v", task)
+	}
+	_, err = s.UpdateTask("mem", "WEB-2", 2, TaskPatch{URLs: &model.URLs{}})
+	f.ok(err)
+	if x := f.reload(); x.Task("WEB-2").URLs != nil {
+		t.Errorf("urls on disk = %v", x.Task("WEB-2").URLs)
+	}
+}
+
 func TestUnknownStatePreserved(t *testing.T) {
 	f := newFixture(t)
 	f.s.Close()

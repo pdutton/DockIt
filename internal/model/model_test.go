@@ -84,6 +84,8 @@ func TestURLsMarshalOrder(t *testing.T) {
 		URLs URLs `yaml:"urls"`
 	}{URLs{
 		"zzz":  {"https://unknown.example"},
+		"aaa":  {"https://unknown.example/a"},
+		URLPR:  {"https://github.com/example/site/pull/1"},
 		URLWeb: {"https://example.com"},
 		URLDoc: {},
 		URLCode: {
@@ -101,6 +103,10 @@ func TestURLsMarshalOrder(t *testing.T) {
         - https://github.com/example/site-infra
     web:
         - https://example.com
+    pr:
+        - https://github.com/example/site/pull/1
+    aaa:
+        - https://unknown.example/a
     zzz:
         - https://unknown.example
 `

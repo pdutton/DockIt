@@ -44,9 +44,21 @@ type Project struct {
 }
 
 // URLs maps a URL type to an ordered list of URLs; the first URL of a type is
-// its primary.  Keys are written in the URL type enumeration's built-in order
-// and empty lists are omitted.
+// its primary.  Projects use URLTypes and tasks TaskURLTypes.  Keys are
+// written in the enumeration's built-in order and empty lists are omitted.
 type URLs map[string][]string
+
+// urlTypeOrder is the position of a URL type in built-in order, projects'
+// types first, or -1 if it is unknown.
+func urlTypeOrder(typ string) int {
+	if i := URLTypes.Index(typ); i >= 0 {
+		return i
+	}
+	if i := TaskURLTypes.Index(typ); i >= 0 {
+		return len(URLTypes.values) + i
+	}
+	return -1
+}
 
 // MarshalYAML writes keys in built-in order.  Unknown keys, which should never
 // occur but are preserved if they do, follow in lexical order.
@@ -58,7 +70,7 @@ func (u URLs) MarshalYAML() (any, error) {
 		}
 	}
 	slices.SortFunc(keys, func(a, b string) int {
-		ia, ib := URLTypes.Index(a), URLTypes.Index(b)
+		ia, ib := urlTypeOrder(a), urlTypeOrder(b)
 		switch {
 		case ia >= 0 && ib >= 0:
 			return ia - ib
@@ -116,6 +128,7 @@ type Task struct {
 	Priority      int       `yaml:"priority" json:"priority"`
 	FoundIn       string    `yaml:"found_in,omitempty" json:"found_in,omitempty"`       // version the issue was found or introduced in
 	ResolvedIn    string    `yaml:"resolved_in,omitempty" json:"resolved_in,omitempty"` // version it was resolved in
+	URLs          URLs      `yaml:"urls,omitempty" json:"urls,omitempty"`
 	Created       time.Time `yaml:"created" json:"created"`
 	Modified      time.Time `yaml:"modified" json:"modified"`
 	LastCommentID int       `yaml:"last_comment_id,omitempty" json:"last_comment_id,omitempty"` // highest comment ID ever used
@@ -155,15 +168,22 @@ func Now() time.Time {
 	return time.Now().UTC().Truncate(time.Second)
 }
 
+// Clone returns a deep copy of the URLs.
+func (u URLs) Clone() URLs {
+	if u == nil {
+		return nil
+	}
+	c := make(URLs, len(u))
+	for k, v := range u {
+		c[k] = slices.Clone(v)
+	}
+	return c
+}
+
 // Clone returns a deep copy of the project.
 func (p *Project) Clone() *Project {
 	c := *p
-	if p.URLs != nil {
-		c.URLs = make(URLs, len(p.URLs))
-		for k, v := range p.URLs {
-			c.URLs[k] = slices.Clone(v)
-		}
-	}
+	c.URLs = p.URLs.Clone()
 	return &c
 }
 
@@ -176,6 +196,7 @@ func (u *User) Clone() *User {
 // Clone returns a deep copy of the task, including its comments.
 func (t *Task) Clone() *Task {
 	c := *t
+	c.URLs = t.URLs.Clone()
 	c.Comments = slices.Clone(t.Comments)
 	return &c
 }

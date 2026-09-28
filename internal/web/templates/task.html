@@ -14,6 +14,14 @@
   <dt>Modified</dt><dd>{{time $t.Modified}}</dd>
 </dl>
 {{with $t.Description}}<div class="markdown">{{markdown .}}</div>{{else}}<p class="hint">No description.</p>{{end}}
+{{if $t.URLs}}
+<dl class="urls">
+  {{range taskURLTypes}}{{$list := index $t.URLs .ID}}{{if $list}}
+  <dt>{{.Display}}</dt>
+  {{range $list}}<dd><a href="{{.}}" rel="nofollow noopener" target="_blank">{{.}}</a></dd>{{end}}
+  {{end}}{{end}}
+</dl>
+{{end}}
 
 {{if canEdit $me}}
 <details class="edit"{{if $d.EditingOpen}} open{{end}}>
@@ -31,6 +39,7 @@
       <dt>Resolved in</dt><dd>{{.ResolvedIn}}</dd>
       <dt>Owner</dt><dd>{{.Owner}}</dd>
       <dt>Description</dt><dd><pre>{{.Description}}</pre></dd>
+      {{range $typ, $list := .URLs}}<dt>{{taskURLType $typ}}</dt><dd>{{range $list}}{{.}}<br>{{end}}</dd>{{end}}
     </dl>
   </div>
   {{end}}

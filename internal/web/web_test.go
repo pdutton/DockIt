@@ -330,13 +330,17 @@ func TestTasksAndComments(t *testing.T) {
 
 	// Edit, then a conflicting edit from the old version.
 	p = mem.post("/tasks/WEB-1", "version", "1", "title", "Fix the logo", "type", "bugfix", "description", "", "owner", "mem",
-		"state", "complete", "substate", "done", "priority", "2", "found_in", " 1.0.4 ", "resolved_in", "")
+		"state", "complete", "substate", "done", "priority", "2", "found_in", " 1.0.4 ", "resolved_in", "",
+		"urls_pr", "https://github.com/example/site/pull/1\r\n\r\n https://github.com/example/site/pull/2 ")
 	if p.status != http.StatusSeeOther {
 		t.Fatalf("edit task: %d %s", p.status, p.body)
 	}
 	// Versions are trimmed, and only those that are set are shown.
 	tp := mem.get("/tasks/WEB-1")
-	f.want(tp, 200, "<dt>Found in</dt><dd>1.0.4</dd>", `name="found_in" value="1.0.4"`)
+	f.want(tp, 200, "<dt>Found in</dt><dd>1.0.4</dd>", `name="found_in" value="1.0.4"`,
+		// PR links, one per line with blanks and spaces dropped.
+		"<dt>Pull Requests</dt>", `<a href="https://github.com/example/site/pull/2"`,
+		"https://github.com/example/site/pull/1\nhttps://github.com/example/site/pull/2</textarea>")
 	if strings.Contains(tp.body, "<dt>Resolved in</dt>") {
 		t.Error("empty Resolved in shown")
 	}

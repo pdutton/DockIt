@@ -256,9 +256,10 @@ func TestPatchProject(t *testing.T) {
 func TestTasks(t *testing.T) {
 	f := newFixture(t, Options{})
 	f.want(f.do("POST", "/projects/WEB/tasks", "view", `{"title":"x"}`), 403, "forbidden")
-	r := f.do("POST", "/projects/WEB/tasks", "mem", `{"title":"First","priority":2}`)
+	r := f.do("POST", "/projects/WEB/tasks", "mem", `{"title":"First","priority":2,"urls":{"pr":["https://github.com/example/site/pull/9"]}}`)
 	f.want(r, 201, "")
-	if r.header.Get("Location") != Prefix+"/tasks/WEB-1" || r.obj()["owner"] != "mem" || r.obj()["type"] != "task" {
+	if r.header.Get("Location") != Prefix+"/tasks/WEB-1" || r.obj()["owner"] != "mem" || r.obj()["type"] != "task" ||
+		r.obj()["urls"] == nil {
 		t.Errorf("created %s %v", r.body, r.header)
 	}
 	f.want(f.do("POST", "/projects/WEB/tasks", "mem", `{"title":"Second","type":"documentation","owner":"admin","state":"paused"}`), 201, "")
@@ -308,6 +309,19 @@ func TestTasks(t *testing.T) {
 	r = f.do("PATCH", "/tasks/WEB-2", "mem", `{"found_in":null}`, "If-Match", `"2"`)
 	f.want(r, 200, "")
 	if _, ok := r.obj()["found_in"]; ok || r.obj()["resolved_in"] != "1.1" {
+		t.Errorf("patched %s", r.body)
+	}
+	// Task URLs merge like project URLs.
+	r = f.do("PATCH", "/tasks/WEB-2", "mem", `{"urls":{"pr":["https://github.com/example/site/pull/1"]}}`, "If-Match", `"3"`)
+	f.want(r, 200, "")
+	if urls, _ := r.obj()["urls"].(map[string]any); len(urls) != 1 || len(urls["pr"].([]any)) != 1 {
+		t.Errorf("patched %s", r.body)
+	}
+	f.want(f.do("PATCH", "/tasks/WEB-2", "mem", `{"urls":{"code":["https://github.com/example/site"]}}`, "If-Match", `"4"`), 422, "invalid")
+	f.want(f.do("PATCH", "/tasks/WEB-2", "mem", `{"urls":{"pr":null}}`, "If-Match", `"3"`), 412, "")
+	r = f.do("PATCH", "/tasks/WEB-2", "mem", `{"urls":{"pr":null}}`, "If-Match", `"4"`)
+	f.want(r, 200, "")
+	if _, ok := r.obj()["urls"]; ok {
 		t.Errorf("patched %s", r.body)
 	}
 	f.want(f.do("PATCH", "/tasks/WEB-1", "mem", `{"creator":"admin"}`, "If-Match", `"3"`), 400, "bad_request")
@@ -432,9 +446,11 @@ func TestEnums(t *testing.T) {
 	subs, _ := r.obj()["substates"].(map[string]any)
 	states, _ := r.obj()["task_states"].([]any)
 	types, _ := r.obj()["task_types"].([]any)
+	urlTypes, _ := r.obj()["task_url_types"].([]any)
 	if len(subs["complete"].([]any)) != 2 || len(states) != 5 ||
 		states[1].(map[string]any)["display"] != "In Progress" ||
-		len(types) != 6 || types[0].(map[string]any)["display"] != "Bug Fix" {
+		len(types) != 6 || types[0].(map[string]any)["display"] != "Bug Fix" ||
+		len(urlTypes) != 1 || urlTypes[0].(map[string]any)["id"] != "pr" {
 		t.Errorf("enums = %s", r.body)
 	}
 }

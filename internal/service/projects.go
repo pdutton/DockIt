@@ -69,14 +69,13 @@ func (s *Service) CreateProject(actor string, in NewProject) (*model.Project, er
 		Name:        in.Name,
 		State:       in.State,
 		Description: in.Description,
-		URLs:        maps.Clone(in.URLs),
+		URLs:        compactURLs(in.URLs),
 		Created:     now,
 		Modified:    now,
 	}
 	if p.State == "" {
 		p.State = model.ProjectPlanned
 	}
-	dropEmptyURLs(p)
 	if err := validate(p.Validate(), all); err != nil {
 		return nil, err
 	}
@@ -109,8 +108,7 @@ func (s *Service) UpdateProject(actor, pid string, version int, patch ProjectPat
 	set(&p.Description, patch.Description, "description", changed)
 	if patch.URLs != nil {
 		before := p.URLs
-		p.URLs = maps.Clone(*patch.URLs)
-		dropEmptyURLs(p)
+		p.URLs = compactURLs(*patch.URLs)
 		if !maps.EqualFunc(before, p.URLs, slices.Equal) {
 			changed["urls"] = true
 		}
@@ -131,17 +129,19 @@ func (s *Service) UpdateProject(actor, pid string, version int, patch ProjectPat
 	return p.Clone(), nil
 }
 
-// dropEmptyURLs removes URL types with no URLs, so an empty list and an
-// absent one are the same thing.
-func dropEmptyURLs(p *model.Project) {
-	for k, v := range p.URLs {
+// compactURLs returns a copy of u without URL types that have no URLs, so an
+// empty list and an absent one are the same thing, and nil if none are left.
+func compactURLs(u model.URLs) model.URLs {
+	u = u.Clone()
+	for k, v := range u {
 		if len(v) == 0 {
-			delete(p.URLs, k)
+			delete(u, k)
 		}
 	}
-	if len(p.URLs) == 0 {
-		p.URLs = nil
+	if len(u) == 0 {
+		return nil
 	}
+	return u
 }
 
 // set applies an optional patch value to a field, recording the field as
