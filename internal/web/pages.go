@@ -245,11 +245,13 @@ type taskForm struct {
 	State       string
 	Substate    string
 	Priority    int
+	FoundIn     string
+	ResolvedIn  string
 	Version     int
 }
 
 func taskFormFrom(t *model.Task) taskForm {
-	return taskForm{t.Title, t.Type, t.Description, t.Owner, t.State, t.Substate, t.Priority, t.Version}
+	return taskForm{t.Title, t.Type, t.Description, t.Owner, t.State, t.Substate, t.Priority, t.FoundIn, t.ResolvedIn, t.Version}
 }
 
 func readTaskForm(r *http.Request) taskForm {
@@ -261,6 +263,8 @@ func readTaskForm(r *http.Request) taskForm {
 		State:       r.PostForm.Get("state"),
 		Substate:    r.PostForm.Get("substate"),
 		Priority:    formInt(r, "priority"),
+		FoundIn:     strings.TrimSpace(r.PostForm.Get("found_in")),
+		ResolvedIn:  strings.TrimSpace(r.PostForm.Get("resolved_in")),
 		Version:     formInt(r, "version"),
 	}
 }
@@ -313,6 +317,7 @@ func (w *Web) taskCreate(rw http.ResponseWriter, r *http.Request, c *ctx) error 
 	t, err := w.svc.CreateTask(c.me.ID, pid, service.NewTask{
 		Title: f.Title, Type: f.Type, Description: f.Description, Owner: f.Owner,
 		State: f.State, Substate: f.Substate, Priority: f.Priority,
+		FoundIn: f.FoundIn, ResolvedIn: f.ResolvedIn,
 	})
 	if err != nil {
 		fields, _, ok := formErrors(err)
@@ -385,6 +390,7 @@ func (w *Web) taskUpdate(rw http.ResponseWriter, r *http.Request, c *ctx) error 
 	_, err := w.svc.UpdateTask(c.me.ID, tid, f.Version, service.TaskPatch{
 		Title: &f.Title, Type: &f.Type, Description: &f.Description, Owner: &f.Owner,
 		State: &f.State, Substate: &f.Substate, Priority: &f.Priority,
+		FoundIn: &f.FoundIn, ResolvedIn: &f.ResolvedIn,
 	})
 	if err != nil {
 		fields, current, ok := formErrors(err)

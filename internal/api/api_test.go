@@ -300,6 +300,16 @@ func TestTasks(t *testing.T) {
 	if r.obj()["substate"] != nil || r.obj()["description"] != "Now **bold**" || r.obj()["type"] != "bugfix" {
 		t.Errorf("patched %s", r.body)
 	}
+	r = f.do("PATCH", "/tasks/WEB-2", "mem", `{"found_in":"1.0.4","resolved_in":"1.1"}`, "If-Match", `"1"`)
+	f.want(r, 200, "")
+	if r.obj()["found_in"] != "1.0.4" || r.obj()["resolved_in"] != "1.1" {
+		t.Errorf("patched %s", r.body)
+	}
+	r = f.do("PATCH", "/tasks/WEB-2", "mem", `{"found_in":null}`, "If-Match", `"2"`)
+	f.want(r, 200, "")
+	if _, ok := r.obj()["found_in"]; ok || r.obj()["resolved_in"] != "1.1" {
+		t.Errorf("patched %s", r.body)
+	}
 	f.want(f.do("PATCH", "/tasks/WEB-1", "mem", `{"creator":"admin"}`, "If-Match", `"3"`), 400, "bad_request")
 	f.want(f.do("PATCH", "/tasks/WEB-1", "mem", `{"priority":"high"}`, "If-Match", `"3"`), 400, "bad_request")
 	f.want(f.do("PATCH", "/tasks/WEB-1", "mem", `["title"]`, "If-Match", `"3"`), 400, "bad_request")

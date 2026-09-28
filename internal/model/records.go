@@ -114,6 +114,8 @@ type Task struct {
 	State         string    `yaml:"state" json:"state"`
 	Substate      string    `yaml:"substate,omitempty" json:"substate,omitempty"`
 	Priority      int       `yaml:"priority" json:"priority"`
+	FoundIn       string    `yaml:"found_in,omitempty" json:"found_in,omitempty"`       // version the issue was found or introduced in
+	ResolvedIn    string    `yaml:"resolved_in,omitempty" json:"resolved_in,omitempty"` // version it was resolved in
 	Created       time.Time `yaml:"created" json:"created"`
 	Modified      time.Time `yaml:"modified" json:"modified"`
 	LastCommentID int       `yaml:"last_comment_id,omitempty" json:"last_comment_id,omitempty"` // highest comment ID ever used

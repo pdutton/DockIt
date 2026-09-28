@@ -142,6 +142,8 @@ func (a *API) createTask(w http.ResponseWriter, r *http.Request, actor string) e
 		State       string `json:"state"`
 		Substate    string `json:"substate"`
 		Priority    int    `json:"priority"`
+		FoundIn     string `json:"found_in"`
+		ResolvedIn  string `json:"resolved_in"`
 	}
 	if err := readJSON(r, &in); err != nil {
 		return err
@@ -164,7 +166,7 @@ func (a *API) updateTask(w http.ResponseWriter, r *http.Request, actor string) e
 		return err
 	}
 	readOnly := append([]string{"creator", "comments", "last_comment_id"}, readOnlyRecord...)
-	if err := p.allow(readOnly, "title", "type", "description", "owner", "state", "substate", "priority"); err != nil {
+	if err := p.allow(readOnly, "title", "type", "description", "owner", "state", "substate", "priority", "found_in", "resolved_in"); err != nil {
 		return err
 	}
 	var patch service.TaskPatch
@@ -179,6 +181,8 @@ func (a *API) updateTask(w http.ResponseWriter, r *http.Request, actor string) e
 		{"owner", &patch.Owner, false},
 		{"state", &patch.State, false},
 		{"substate", &patch.Substate, true},
+		{"found_in", &patch.FoundIn, true},
+		{"resolved_in", &patch.ResolvedIn, true},
 	} {
 		if *f.dst, err = optional[string](p, f.name, f.nullable); err != nil {
 			return err

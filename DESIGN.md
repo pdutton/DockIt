@@ -150,6 +150,7 @@ Format history:
 |--------|------------------------------------------------------------------------|
 | 1      | The first format (DockIt 1.0.5 and earlier).                           |
 | 2      | Task `type`, required.  The upgrade gives every existing task `task`.  |
+|        | Task `found_in` and `resolved_in`, optional.                           |
 
 ### Record formats
 
@@ -203,6 +204,8 @@ owner: pdutton
 state: complete
 substate: done
 priority: 3
+found_in: 1.0.3                 # optional; version the issue was found or introduced in
+resolved_in: 1.1.0              # optional; version it was resolved in
 created: 2026-09-26T21:54:43Z
 modified: 2026-09-27T09:00:00Z
 last_comment_id: 1              # optional; highest comment id ever used
@@ -489,6 +492,7 @@ Enforced in the service layer, identically for both interfaces:
 | URLs                      | absolute `http`/`https`, up to 2 KiB each; key must be a known URL type |
 | Priority                  | integer 1–5, default 3                             |
 | Task type                 | a known type, default `task`                       |
+| Found in, resolved in     | optional, up to 50 characters, no control characters; free-form, so any versioning scheme works |
 | Owner                     | an existing active user                            |
 
 ## Command Line

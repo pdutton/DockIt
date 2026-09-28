@@ -6,6 +6,8 @@
   <dt>Type</dt><dd>{{taskType $t.Type}}</dd>
   <dt>State</dt><dd>{{taskState $t.State}}{{if $t.Substate}} ({{substate $t.State $t.Substate}}){{end}}</dd>
   <dt>Priority</dt><dd>{{$t.Priority}}</dd>
+  {{with $t.FoundIn}}<dt>Found in</dt><dd>{{.}}</dd>{{end}}
+  {{with $t.ResolvedIn}}<dt>Resolved in</dt><dd>{{.}}</dd>{{end}}
   <dt>Owner</dt><dd>{{$t.Owner}}</dd>
   <dt>Creator</dt><dd>{{$t.Creator}}</dd>
   <dt>Created</dt><dd>{{time $t.Created}}</dd>
@@ -25,6 +27,8 @@
       <dt>Type</dt><dd>{{taskType .Type}}</dd>
       <dt>State</dt><dd>{{taskState .State}}{{if .Substate}} ({{substate .State .Substate}}){{end}}</dd>
       <dt>Priority</dt><dd>{{.Priority}}</dd>
+      <dt>Found in</dt><dd>{{.FoundIn}}</dd>
+      <dt>Resolved in</dt><dd>{{.ResolvedIn}}</dd>
       <dt>Owner</dt><dd>{{.Owner}}</dd>
       <dt>Description</dt><dd><pre>{{.Description}}</pre></dd>
     </dl>
