@@ -3,6 +3,7 @@ package web
 import (
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -183,14 +184,36 @@ type projectViewData struct {
 	Sort    string
 }
 
+// StateShown reports whether the filter includes tasks in state id.
+func (d projectViewData) StateShown(id string) bool {
+	return slices.Contains(d.Filter.States, id)
+}
+
+// openStates are the states a task list shows when first opened.
+func openStates() []string {
+	var ids []string
+	for _, v := range model.TaskStates.Values() {
+		if v.ID != model.TaskComplete && v.ID != model.TaskDeferred {
+			ids = append(ids, v.ID)
+		}
+	}
+	return ids
+}
+
 func (w *Web) projectView(rw http.ResponseWriter, r *http.Request, c *ctx) error {
 	p, err := w.svc.Project(c.me.ID, r.PathValue("pid"))
 	if err != nil {
 		return err
 	}
 	q := r.URL.Query()
-	f := service.TaskFilter{State: q.Get("state"), Owner: q.Get("owner")}
+	f := service.TaskFilter{States: slices.DeleteFunc(q["state"], func(s string) bool { return s == "" }), Owner: q.Get("owner")}
 	f.Priority, _ = strconv.Atoi(q.Get("priority"))
+	f.PriorityOrHigher = true
+	// A submitted form always has a query, so no query means first opened.
+	// A submitted form with no state ticked means every state.
+	if r.URL.RawQuery == "" {
+		f.States = openStates()
+	}
 	order := service.SortByID
 	switch q.Get("sort") {
 	case "priority":

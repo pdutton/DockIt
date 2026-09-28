@@ -406,8 +406,11 @@ func TestTaskListing(t *testing.T) {
 		{TaskFilter{}, SortByPriority, "WEB-2 WEB-4 WEB-1 WEB-3"},
 		{TaskFilter{}, SortByModified, "WEB-1 WEB-4 WEB-3 WEB-2"},
 		{TaskFilter{Owner: "mem"}, SortByID, "WEB-1 WEB-3 WEB-4"},
-		{TaskFilter{State: model.TaskPaused}, SortByID, "WEB-3"},
+		{TaskFilter{States: []string{model.TaskPaused}}, SortByID, "WEB-3"},
+		{TaskFilter{States: []string{model.TaskPaused, model.TaskNew}, Owner: "mem"}, SortByID, "WEB-1 WEB-3 WEB-4"},
 		{TaskFilter{Priority: 3, Owner: "mem"}, SortByID, "WEB-1 WEB-3"},
+		{TaskFilter{Priority: 2, PriorityOrHigher: true}, SortByID, "WEB-2 WEB-4"},
+		{TaskFilter{Priority: 1, PriorityOrHigher: true}, SortByID, "WEB-2"},
 	} {
 		if got := ids(s.Tasks("view", "WEB", tc.f, tc.order)); got != tc.want {
 			t.Errorf("%+v %v: got %s, want %s", tc.f, tc.order, got, tc.want)

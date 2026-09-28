@@ -319,6 +319,14 @@ func TestTasksAndComments(t *testing.T) {
 	if p := mem.get("/projects/WEB?state=paused"); strings.Contains(p.body, "Fix the logo") {
 		t.Error("filter did not filter")
 	}
+	f.want(mem.get("/projects/WEB?state=paused&state=new"), 200, "WEB-1",
+		`value="paused" checked`, `value="new" checked`, `value="complete">`)
+	f.want(mem.get("/projects/WEB?priority=3"), 200, "WEB-1", `<option value="3" selected>3</option>`)
+	if p := mem.get("/projects/WEB?priority=1"); strings.Contains(p.body, "Fix the logo") {
+		t.Error("priority 1 shows a priority 2 task")
+	}
+	// Opened without a query, complete and deferred tasks are hidden.
+	f.want(mem.get("/projects/WEB"), 200, "WEB-1", `value="new" checked`, `value="complete">`, `value="deferred">`)
 
 	// Edit, then a conflicting edit from the old version.
 	p = mem.post("/tasks/WEB-1", "version", "1", "title", "Fix the logo", "description", "", "owner", "mem",
@@ -326,6 +334,10 @@ func TestTasksAndComments(t *testing.T) {
 	if p.status != http.StatusSeeOther {
 		t.Fatalf("edit task: %d %s", p.status, p.body)
 	}
+	if p := mem.get("/projects/WEB"); strings.Contains(p.body, "Fix the logo") {
+		t.Error("complete task shown by default")
+	}
+	f.want(mem.get("/projects/WEB?sort="), 200, "Fix the logo")
 	f.want(mem.post("/tasks/WEB-1", "version", "1", "title", "Other title", "owner", "mem",
 		"state", "paused", "priority", "5"), 409, "Someone else changed this task", `value="Other title"`)
 
