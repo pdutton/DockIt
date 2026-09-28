@@ -218,6 +218,27 @@ type commentBody struct {
 	Text string `json:"text"`
 }
 
+func (a *API) listComments(w http.ResponseWriter, r *http.Request, actor string) error {
+	cs, err := a.svc.Comments(actor, r.PathValue("tid"))
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, cs)
+	return nil
+}
+
+func (a *API) getComment(w http.ResponseWriter, r *http.Request, actor string) error {
+	cid, err := pathInt(r, "cid")
+	if err != nil {
+		return err
+	}
+	c, err := a.svc.Comment(actor, r.PathValue("tid"), cid)
+	if err != nil {
+		return err
+	}
+	return writeRecord(w, http.StatusOK, c)
+}
+
 func (a *API) addComment(w http.ResponseWriter, r *http.Request, actor string) error {
 	var in commentBody
 	if err := readJSON(r, &in); err != nil {

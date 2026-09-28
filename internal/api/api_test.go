@@ -344,6 +344,17 @@ func TestComments(t *testing.T) {
 	if r.header.Get("Location") != Prefix+"/tasks/WEB-1/comments/1" || r.header.Get("ETag") != `"1"` {
 		t.Errorf("headers %v", r.header)
 	}
+	// The Location header can be followed, by any user.
+	loc, _ := strings.CutPrefix(r.header.Get("Location"), Prefix)
+	r = f.do("GET", loc, "view", nil)
+	f.want(r, 200, "")
+	if r.obj()["text"] != "hello" || r.header.Get("ETag") != `"1"` {
+		t.Errorf("get comment %s ETag %s", r.body, r.header.Get("ETag"))
+	}
+	f.want(f.do("GET", "/tasks/WEB-1/comments/2", "view", nil), 404, "not_found")
+	f.want(f.do("GET", "/tasks/WEB-1/comments/abc", "view", nil), 404, "not_found")
+	f.want(f.do("GET", "/tasks/WEB-9/comments/1", "view", nil), 404, "not_found")
+
 	f.want(f.do("POST", "/tasks/WEB-1/comments", "view", `{"text":"hi"}`), 403, "forbidden")
 	f.want(f.do("POST", "/tasks/WEB-1/comments", "mem", `{"text":""}`), 422, "invalid")
 
@@ -354,6 +365,12 @@ func TestComments(t *testing.T) {
 	if r.obj()["text"] != "edited" || r.header.Get("ETag") != `"2"` {
 		t.Errorf("edited %s", r.body)
 	}
+	r = f.do("GET", "/tasks/WEB-1/comments", "view", nil)
+	f.want(r, 200, "")
+	if cs, _ := r.json().([]any); len(cs) != 1 || cs[0].(map[string]any)["text"] != "edited" {
+		t.Errorf("list %s", r.body)
+	}
+	f.want(f.do("GET", "/tasks/WEB-9/comments", "view", nil), 404, "not_found")
 	r = f.do("DELETE", "/tasks/WEB-1/comments/1", "mem", nil, "If-Match", `"1"`)
 	f.want(r, 412, "conflict")
 	if cur, _ := r.obj()["current"].(map[string]any); cur["text"] != "edited" {
@@ -362,6 +379,10 @@ func TestComments(t *testing.T) {
 	f.want(f.do("DELETE", "/tasks/WEB-1/comments/1", "mem", nil, "If-Match", `"2"`), 204, "")
 	f.want(f.do("DELETE", "/tasks/WEB-1/comments/1", "mem", nil, "If-Match", `"2"`), 404, "not_found")
 	f.want(f.do("DELETE", "/tasks/WEB-1/comments/abc", "mem", nil, "If-Match", `"2"`), 404, "not_found")
+	// No comments is an empty list, not null.
+	if r := f.do("GET", "/tasks/WEB-1/comments", "view", nil); strings.TrimSpace(string(r.body)) != "[]" {
+		t.Errorf("empty list %s", r.body)
+	}
 
 	// The task itself still has version 1: comments never conflict with it.
 	if r := f.do("GET", "/tasks/WEB-1", "view", nil); r.header.Get("ETag") != `"1"` {

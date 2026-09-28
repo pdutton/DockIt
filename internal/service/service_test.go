@@ -526,6 +526,22 @@ func TestComments(t *testing.T) {
 	if task.Version != 1 || !task.Modified.Equal(f.clock) || len(task.Comments) != 2 {
 		t.Errorf("comments changed the task version or left modified alone: %+v", task)
 	}
+	// Anyone may read comments.
+	cs, err := s.Comments("view", "WEB-1")
+	f.ok(err)
+	if len(cs) != 2 || cs[0].Text != "one" || cs[1].Text != "two" {
+		t.Errorf("Comments = %+v", cs)
+	}
+	c, err := s.Comment("view", "WEB-1", 2)
+	f.ok(err)
+	if c.Text != "two" || c.Commenter != "mem2" {
+		t.Errorf("Comment = %+v", c)
+	}
+	_, err = s.Comment("view", "WEB-1", 3)
+	wantErr(t, err, ErrNotFound)
+	_, err = s.Comments("view", "WEB-9")
+	wantErr(t, err, ErrNotFound)
+
 	// So a task edit based on version 1 still succeeds.
 	_, err = s.UpdateTask("mem2", "WEB-1", 1, TaskPatch{Title: ptr("T2")})
 	f.ok(err)
