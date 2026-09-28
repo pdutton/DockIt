@@ -309,7 +309,7 @@ modified: 2026-09-27T08:10:00Z
 func TestTaskFormat(t *testing.T) {
 	s := newDataset(t)
 	task := &model.Task{
-		ID: "WEB-12", Version: 7, Title: "Replace The Header Logo", Type: model.TypeBugfix, Description: "Markdown text.\n",
+		ID: "WEB-12", Version: 7, Title: "Replace The Header Logo", Type: model.TypeBugfix, FoundIn: "1.0.3", ResolvedIn: "1.1.0", Description: "Markdown text.\n",
 		Creator: "pdutton", Owner: "pdutton", State: model.TaskComplete, Substate: model.SubstateDone,
 		Priority: 3, Created: ts1, Modified: ts2,
 		Comments: []model.Comment{{
@@ -331,6 +331,8 @@ owner: pdutton
 state: complete
 substate: done
 priority: 3
+found_in: 1.0.3
+resolved_in: 1.1.0
 created: 2026-09-26T21:54:43Z
 modified: 2026-09-27T08:10:00Z
 comments:

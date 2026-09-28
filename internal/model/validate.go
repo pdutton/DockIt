@@ -16,6 +16,7 @@ const (
 	MaxUserNameLen = 100      // user name (characters)
 	MaxMarkdownLen = 64 << 10 // markdown fields (bytes)
 	MaxURLLen      = 2 << 10  // each URL (bytes)
+	MaxVersionLen  = 50       // task found_in and resolved_in (characters)
 	MinPriority    = 1
 	MaxPriority    = 5
 )
@@ -133,6 +134,15 @@ func checkEnum(field string, e *Enum, id string) *FieldError {
 		return fieldWarn(field, "unknown %s %q", e.Name(), id)
 	}
 	return nil
+}
+
+// checkOptionalText checks an optional single-line text field: empty, or as
+// checkText.
+func checkOptionalText(field, s string, max int) *FieldError {
+	if s == "" {
+		return nil
+	}
+	return checkText(field, s, max)
 }
 
 func checkMarkdown(field, s string) *FieldError {
@@ -269,6 +279,10 @@ func (t *Task) Validate() []*FieldError {
 	if t.Priority < MinPriority || t.Priority > MaxPriority {
 		p.add(fieldErr("priority", "must be %d to %d", MinPriority, MaxPriority))
 	}
+	p.add(
+		checkOptionalText("found_in", t.FoundIn, MaxVersionLen),
+		checkOptionalText("resolved_in", t.ResolvedIn, MaxVersionLen),
+	)
 
 	seen := make(map[int]bool, len(t.Comments))
 	for i := range t.Comments {

@@ -76,4 +76,14 @@
     {{with .Errors.priority}}<span class="error">{{.}}</span>{{end}}
   </label>
 </div>
+<div class="row">
+  <label>Found in <span class="hint">version, optional</span>
+    <input name="found_in" value="{{.Form.FoundIn}}" maxlength="50">
+    {{with .Errors.found_in}}<span class="error">{{.}}</span>{{end}}
+  </label>
+  <label>Resolved in <span class="hint">version, optional</span>
+    <input name="resolved_in" value="{{.Form.ResolvedIn}}" maxlength="50">
+    {{with .Errors.resolved_in}}<span class="error">{{.}}</span>{{end}}
+  </label>
+</div>
 {{end}}

@@ -16,6 +16,8 @@ type NewTask struct {
 	State       string // defaults to new
 	Substate    string
 	Priority    int // defaults to 3
+	FoundIn     string
+	ResolvedIn  string
 }
 
 // TaskPatch is the input for UpdateTask.  Nil fields are left as they are.
@@ -27,6 +29,8 @@ type TaskPatch struct {
 	State       *string
 	Substate    *string
 	Priority    *int
+	FoundIn     *string
+	ResolvedIn  *string
 }
 
 // TaskFilter selects tasks.  Zero fields match everything.
@@ -113,6 +117,8 @@ func (s *Service) CreateTask(actor, pid string, in NewTask) (*model.Task, error)
 		State:       cmp.Or(in.State, model.TaskNew),
 		Substate:    in.Substate,
 		Priority:    cmp.Or(in.Priority, model.DefaultPriority),
+		FoundIn:     in.FoundIn,
+		ResolvedIn:  in.ResolvedIn,
 		Created:     now,
 		Modified:    now,
 	}
@@ -157,6 +163,8 @@ func (s *Service) UpdateTask(actor, tid string, version int, patch TaskPatch) (*
 	set(&t.State, patch.State, "state", changed)
 	set(&t.Substate, patch.Substate, "substate", changed)
 	set(&t.Priority, patch.Priority, "priority", changed)
+	set(&t.FoundIn, patch.FoundIn, "found_in", changed)
+	set(&t.ResolvedIn, patch.ResolvedIn, "resolved_in", changed)
 	if changed["state"] && patch.Substate == nil {
 		if _, hasSubs := model.Substates[t.State]; !hasSubs && t.Substate != "" {
 			t.Substate = ""

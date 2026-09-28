@@ -259,10 +259,10 @@ func TestCreateTask(t *testing.T) {
 		t1.State != model.TaskNew || t1.Priority != 3 || t1.Version != 1 {
 		t.Errorf("task = %+v", t1)
 	}
-	t2, err := s.CreateTask("admin", "WEB", NewTask{Title: "Second", Type: model.TypeBugfix, Owner: "mem2", Priority: 1,
+	t2, err := s.CreateTask("admin", "WEB", NewTask{Title: "Second", Type: model.TypeBugfix, FoundIn: "v1.0.4", Owner: "mem2", Priority: 1,
 		State: model.TaskComplete, Substate: model.SubstateRejected})
 	f.ok(err)
-	if t2.ID != "WEB-2" || t2.Type != model.TypeBugfix || t2.Owner != "mem2" || t2.Priority != 1 || t2.Substate != model.SubstateRejected {
+	if t2.ID != "WEB-2" || t2.Type != model.TypeBugfix || t2.FoundIn != "v1.0.4" || t2.Owner != "mem2" || t2.Priority != 1 || t2.Substate != model.SubstateRejected {
 		t.Errorf("task = %+v", t2)
 	}
 
@@ -272,6 +272,10 @@ func TestCreateTask(t *testing.T) {
 	wantInvalid(t, err, "title")
 	_, err = s.CreateTask("mem", "WEB", NewTask{Title: "x", Type: "chore"})
 	wantInvalid(t, err, "type")
+	_, err = s.CreateTask("mem", "WEB", NewTask{Title: "x", FoundIn: strings.Repeat("1", model.MaxVersionLen+1)})
+	wantInvalid(t, err, "found_in")
+	_, err = s.CreateTask("mem", "WEB", NewTask{Title: "x", ResolvedIn: "1.0\n2"})
+	wantInvalid(t, err, "resolved_in")
 	_, err = s.CreateTask("mem", "WEB", NewTask{Title: "x", State: model.TaskComplete})
 	wantInvalid(t, err, "substate")
 	_, err = s.CreateTask("mem", "WEB", NewTask{Title: "x", Substate: model.SubstateDone})
@@ -349,6 +353,30 @@ func TestUpdateTask(t *testing.T) {
 	f.ok(err)
 	_, err = s.UpdateTask("mem", "WEB-1", 6, TaskPatch{Owner: ptr("mem2")})
 	wantInvalid(t, err, "owner")
+}
+
+func TestTaskVersionFields(t *testing.T) {
+	f := newFixture(t)
+	s := f.s
+	_, err := s.CreateTask("mem", "WEB", NewTask{Title: "T"})
+	f.ok(err)
+
+	// Versions can be set and cleared, independently.
+	task, err := s.UpdateTask("mem", "WEB-1", 1, TaskPatch{FoundIn: ptr("1.0"), ResolvedIn: ptr("1.1")})
+	f.ok(err)
+	if task.FoundIn != "1.0" || task.ResolvedIn != "1.1" {
+		t.Errorf("task = %+v", task)
+	}
+	task, err = s.UpdateTask("mem", "WEB-1", 2, TaskPatch{FoundIn: ptr("")})
+	f.ok(err)
+	if task.FoundIn != "" || task.ResolvedIn != "1.1" {
+		t.Errorf("task = %+v", task)
+	}
+	_, err = s.UpdateTask("mem", "WEB-1", 3, TaskPatch{ResolvedIn: ptr(strings.Repeat("1", model.MaxVersionLen+1))})
+	wantInvalid(t, err, "resolved_in")
+	if x := f.reload(); x.Task("WEB-1").ResolvedIn != "1.1" {
+		t.Error("versions on disk wrong")
+	}
 }
 
 func TestUnknownStatePreserved(t *testing.T) {

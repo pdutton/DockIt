@@ -219,3 +219,8 @@ The initial list:
 - Research
 
 Existing tasks, from before types were added, become Task when the dataset is upgraded.
+
+#### Versions
+
+Two optional versions: the version in which the issue was found or introduced, and the version
+in which it was resolved.  These are free-form text, such as `1.0.5`, so any versioning scheme works.

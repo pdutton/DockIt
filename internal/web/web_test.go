@@ -330,9 +330,15 @@ func TestTasksAndComments(t *testing.T) {
 
 	// Edit, then a conflicting edit from the old version.
 	p = mem.post("/tasks/WEB-1", "version", "1", "title", "Fix the logo", "type", "bugfix", "description", "", "owner", "mem",
-		"state", "complete", "substate", "done", "priority", "2")
+		"state", "complete", "substate", "done", "priority", "2", "found_in", " 1.0.4 ", "resolved_in", "")
 	if p.status != http.StatusSeeOther {
 		t.Fatalf("edit task: %d %s", p.status, p.body)
+	}
+	// Versions are trimmed, and only those that are set are shown.
+	tp := mem.get("/tasks/WEB-1")
+	f.want(tp, 200, "<dt>Found in</dt><dd>1.0.4</dd>", `name="found_in" value="1.0.4"`)
+	if strings.Contains(tp.body, "<dt>Resolved in</dt>") {
+		t.Error("empty Resolved in shown")
 	}
 	if p := mem.get("/projects/WEB"); strings.Contains(p.body, "Fix the logo") {
 		t.Error("complete task shown by default")
