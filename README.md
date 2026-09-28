@@ -12,19 +12,17 @@ DockIt is in early development and licensed under the AGPL ([LICENSE](LICENSE)).
 Build the image:
 
 ```sh
-podman build --build-arg VERSION=$(git describe --tags --always --dirty) -t dockit .
+VERSION=$(git describe --tags --always --dirty)
+podman build --build-arg VERSION=$VERSION -t dockit:$VERSION .
+podman tag dockit:$VERSION dockit:latest
 ```
 
-Make a host directory for the data:
+Make a host directory for the data, then create the dataset and its first admin
+user. Note the one-time password it prints:
 
 ```sh
 DOCKIT_DIR=/srv/dockit/data
 mkdir -p $DOCKIT_DIR
-```
-
-Create the dataset and its first admin user. Note the one-time password it prints:
-
-```sh
 podman run --rm --userns=keep-id:uid=65532,gid=65532 -v $DOCKIT_DIR:/data:Z \
   dockit init -admin pdutton -name "Peter Dutton" -email peter@example.com
 ```
