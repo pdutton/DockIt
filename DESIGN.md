@@ -458,7 +458,9 @@ POST   /api/v1/projects/{pid}/tasks             create; server assigns the ID
 GET    /api/v1/tasks/{tid}
 PATCH  /api/v1/tasks/{tid}                      update (If-Match)
 
+GET    /api/v1/tasks/{tid}/comments             list, oldest first
 POST   /api/v1/tasks/{tid}/comments             add
+GET    /api/v1/tasks/{tid}/comments/{cid}
 PATCH  /api/v1/tasks/{tid}/comments/{cid}       edit own (If-Match)
 DELETE /api/v1/tasks/{tid}/comments/{cid}       delete own (If-Match)
 

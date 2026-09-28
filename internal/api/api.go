@@ -87,7 +87,9 @@ func (a *API) routes() {
 	h("GET "+Prefix+"/tasks/{tid}", a.getTask)
 	h("PATCH "+Prefix+"/tasks/{tid}", a.updateTask)
 
+	h("GET "+Prefix+"/tasks/{tid}/comments", a.listComments)
 	h("POST "+Prefix+"/tasks/{tid}/comments", a.addComment)
+	h("GET "+Prefix+"/tasks/{tid}/comments/{cid}", a.getComment)
 	h("PATCH "+Prefix+"/tasks/{tid}/comments/{cid}", a.editComment)
 	h("DELETE "+Prefix+"/tasks/{tid}/comments/{cid}", a.deleteComment)
 

@@ -8,6 +8,32 @@ import (
 // never conflicts with an edit of the task's own fields, and vice versa.  Any
 // comment change still updates the task's modified time.
 
+// Comments returns the comments on task tid, oldest first.  Anyone.
+func (s *Service) Comments(actor, tid string) ([]model.Comment, error) {
+	t, err := s.Task(actor, tid)
+	if err != nil {
+		return nil, err
+	}
+	if t.Comments == nil {
+		return []model.Comment{}, nil
+	}
+	return t.Comments, nil
+}
+
+// Comment returns comment cid on task tid.  Anyone.
+func (s *Service) Comment(actor, tid string, cid int) (*model.Comment, error) {
+	t, err := s.Task(actor, tid)
+	if err != nil {
+		return nil, err
+	}
+	for i := range t.Comments {
+		if t.Comments[i].ID == cid {
+			return &t.Comments[i], nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
 // AddComment adds a comment to task tid.  Members and admins.
 func (s *Service) AddComment(actor, tid, text string) (*model.Comment, error) {
 	if err := checkCommentText(text); err != nil {
