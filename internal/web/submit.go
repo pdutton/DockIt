@@ -18,7 +18,7 @@ import (
 
 // submissionKeep is how long a finished submission's response is kept to
 // answer repeats.
-const submissionKeep = 5 * time.Minute
+const submissionKeep = time.Minute
 
 type submission struct {
 	done     chan struct{} // closed when the first request finishes
