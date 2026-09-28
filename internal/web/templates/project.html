@@ -34,7 +34,7 @@
   <label>Priority
     <select name="priority">
       <option value="">Any</option>
-      {{range priorities}}<option value="{{.}}"{{if eq . $.Data.Filter.MaxPriority}} selected{{end}}>{{.}}</option>{{end}}
+      {{range priorities}}<option value="{{.}}"{{if eq . $.Data.Filter.Priority}} selected{{end}}>{{.}}</option>{{end}}
     </select>
   </label>
   <label>Sort by

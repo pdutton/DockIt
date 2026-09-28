@@ -207,7 +207,8 @@ func (w *Web) projectView(rw http.ResponseWriter, r *http.Request, c *ctx) error
 	}
 	q := r.URL.Query()
 	f := service.TaskFilter{States: slices.DeleteFunc(q["state"], func(s string) bool { return s == "" }), Owner: q.Get("owner")}
-	f.MaxPriority, _ = strconv.Atoi(q.Get("priority"))
+	f.Priority, _ = strconv.Atoi(q.Get("priority"))
+	f.PriorityOrHigher = true
 	// A submitted form always has a query, so no query means first opened.
 	// A submitted form with no state ticked means every state.
 	if r.URL.RawQuery == "" {
