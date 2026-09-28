@@ -40,6 +40,14 @@
   {{with .Errors.description}}<span class="error">{{.}}</span>{{end}}
 </label>
 <div class="row">
+  <label>Type
+    <select name="type">
+      {{$type := .Form.Type}}{{$known := false}}
+      {{range taskTypes}}<option value="{{.ID}}"{{if eq .ID $type}} selected{{$known = true}}{{end}}>{{.Display}}</option>{{end}}
+      {{if not $known}}<option value="{{$type}}" selected>{{$type}} (unknown)</option>{{end}}
+    </select>
+    {{with .Errors.type}}<span class="error">{{.}}</span>{{end}}
+  </label>
   <label>Owner
     <select name="owner">
       {{range .Owners}}<option value="{{.ID}}"{{if eq .ID $.Form.Owner}} selected{{end}}>{{.Name}} ({{.ID}}){{if not .Active}} — deactivated{{end}}</option>{{end}}

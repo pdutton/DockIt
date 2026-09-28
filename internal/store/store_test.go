@@ -125,6 +125,7 @@ func TestOpenFormat(t *testing.T) {
 		format      int
 		upgradeable bool
 	}{
+		{model.FormatCurrent - 1, true},
 		{model.FormatCurrent + 1, false},
 		{0, false},
 	} {
@@ -308,7 +309,7 @@ modified: 2026-09-27T08:10:00Z
 func TestTaskFormat(t *testing.T) {
 	s := newDataset(t)
 	task := &model.Task{
-		ID: "WEB-12", Version: 7, Title: "Replace The Header Logo", Description: "Markdown text.\n",
+		ID: "WEB-12", Version: 7, Title: "Replace The Header Logo", Type: model.TypeBugfix, Description: "Markdown text.\n",
 		Creator: "pdutton", Owner: "pdutton", State: model.TaskComplete, Substate: model.SubstateDone,
 		Priority: 3, Created: ts1, Modified: ts2,
 		Comments: []model.Comment{{
@@ -322,6 +323,7 @@ func TestTaskFormat(t *testing.T) {
 	want := `id: WEB-12
 version: 7
 title: Replace The Header Logo
+type: bugfix
 description: |
   Markdown text.
 creator: pdutton

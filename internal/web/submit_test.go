@@ -64,7 +64,7 @@ func TestRepeatedSubmission(t *testing.T) {
 	key = mem.submissionKey("/tasks/WEB-1")
 	for i := range 2 {
 		p := mem.post("/tasks/WEB-1", "submission", key, "version", "1", "title", "Once more",
-			"owner", "mem", "state", "new", "priority", "3")
+			"type", "task", "owner", "mem", "state", "new", "priority", "3")
 		if p.status != http.StatusSeeOther {
 			t.Fatalf("edit send %d: %d %s", i+1, p.status, p.body)
 		}

@@ -203,3 +203,18 @@ friendly display string that may change over time.
 
 Simple numeric priorities.  Priority 1 is highest. Assume this list will not change.  Required.
 Default to 3.
+
+#### Type
+
+The kind of work the task is, chosen from a static list built into DockIt.  Required.
+Defaults to Task.  The list may expand over time, but assume existing entries will not be removed.
+
+The initial list:
+
+- Bug Fix
+- Enhancement
+- Feature
+- Task
+- Documentation
+
+Existing tasks, from before types were added, become Task when the dataset is upgraded.

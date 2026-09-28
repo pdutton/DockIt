@@ -76,6 +76,15 @@ const (
 	SubstateRejected = "rejected"
 )
 
+// Task types.
+const (
+	TypeBugfix        = "bugfix"
+	TypeEnhancement   = "enhancement"
+	TypeFeature       = "feature"
+	TypeTask          = "task"
+	TypeDocumentation = "documentation"
+)
+
 // URL types.
 const (
 	URLCode = "code"
@@ -105,6 +114,14 @@ var (
 		EnumValue{TaskDeferred, "Deferred"},
 		EnumValue{TaskPaused, "Paused"},
 		EnumValue{TaskComplete, "Complete"},
+	)
+
+	TaskTypes = newEnum("task type",
+		EnumValue{TypeBugfix, "Bug Fix"},
+		EnumValue{TypeEnhancement, "Enhancement"},
+		EnumValue{TypeFeature, "Feature"},
+		EnumValue{TypeTask, "Task"},
+		EnumValue{TypeDocumentation, "Documentation"},
 	)
 
 	// Substates maps a task state to its substates.  A state that is absent

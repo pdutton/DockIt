@@ -122,7 +122,7 @@ Individual files will be written in a manner that protects against corruption.
 `dockit.yaml`:
 
 ```yaml
-format: 1                       # dataset format version, an integer
+format: 2                       # dataset format version, an integer
 dataset_id: 3f8c2a1e-...        # random UUID, identifies the dataset across copies
 created: 2026-09-26T21:54:43Z
 ```
@@ -143,6 +143,13 @@ created: 2026-09-26T21:54:43Z
     means in practice.
 - Upgrades are never performed implicitly by `serve`, so a dataset is never silently made unreadable to
   an older install.
+
+Format history:
+
+| Format | Change                                                                 |
+|--------|------------------------------------------------------------------------|
+| 1      | The first format (DockIt 1.0.5 and earlier).                           |
+| 2      | Task `type`, required.  The upgrade gives every existing task `task`.  |
 
 ### Record formats
 
@@ -188,6 +195,7 @@ Task, `projects/WEB/tasks/WEB-12.yaml`:
 id: WEB-12
 version: 7
 title: Replace The Header Logo
+type: bugfix
 description: |
   Markdown text.
 creator: pdutton
@@ -246,6 +254,7 @@ Built into the implementation as a table of stable id → display string:
 | Project state | `planned`, `active`, `inactive`, `dormant`, `complete` |
 | Task state    | `new`, `in_progress`, `deferred`, `paused`, `complete` |
 | Substate      | `complete`: `done`, `rejected`                         |
+| Task type     | `bugfix`, `enhancement`, `feature`, `task`, `documentation` (displayed as Bug Fix, Enhancement, Feature, Task, Documentation) |
 | URL type      | `code`, `doc`, `web` (displayed as Code, Documentation, Website) |
 | Role          | see [Roles and Permissions](#roles-and-permissions)    |
 
@@ -454,7 +463,7 @@ GET    /api/v1/me/tokens                        list own tokens (metadata only)
 POST   /api/v1/me/tokens                        create; token returned once
 DELETE /api/v1/me/tokens/{id}                   revoke
 
-GET    /api/v1/enums                            states, substates, roles, display strings
+GET    /api/v1/enums                            states, substates, task types, roles, display strings
 ```
 
 - `PATCH` bodies are JSON Merge Patch (RFC 7396).
@@ -479,6 +488,7 @@ Enforced in the service layer, identically for both interfaces:
 | Markdown fields           | optional, up to 64 KiB                             |
 | URLs                      | absolute `http`/`https`, up to 2 KiB each; key must be a known URL type |
 | Priority                  | integer 1–5, default 3                             |
+| Task type                 | a known type, default `task`                       |
 | Owner                     | an existing active user                            |
 
 ## Command Line

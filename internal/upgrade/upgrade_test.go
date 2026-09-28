@@ -14,6 +14,7 @@ import (
 
 var now = time.Date(2026, 9, 27, 2, 15, 0, 0, time.UTC)
 
+// newDataset creates a dataset in format 1, which these tests upgrade from.
 func newDataset(t *testing.T) string {
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "data")
@@ -22,7 +23,22 @@ func newDataset(t *testing.T) string {
 	if err := store.Init(root, u, &model.Auth{User: "admin", Password: "x"}); err != nil {
 		t.Fatal(err)
 	}
+	setFormat(t, root, 1)
 	return root
+}
+
+func setFormat(t *testing.T, root string, n int) {
+	t.Helper()
+	s, err := store.OpenAnyFormat(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	m := s.Meta()
+	m.Format = n
+	if err := s.WriteMeta(m); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func format(t *testing.T, root string) int {
@@ -89,6 +105,7 @@ func TestUpgrade(t *testing.T) {
 
 func TestUpgradeCurrent(t *testing.T) {
 	root := newDataset(t)
+	setFormat(t, root, model.FormatCurrent)
 	if _, err := Run(root, "", model.FormatCurrent, Migrations, now); !errors.Is(err, ErrCurrent) {
 		t.Errorf("err = %v, want ErrCurrent", err)
 	}
@@ -112,7 +129,7 @@ func TestUpgradeRefuses(t *testing.T) {
 		t.Errorf("touched the dataset: %v, format %d", s, format(t, root))
 	}
 	// A running instance holds the lock.
-	s, err := store.Open(root)
+	s, err := store.OpenAnyFormat(root)
 	if err != nil {
 		t.Fatal(err)
 	}

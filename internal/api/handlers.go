@@ -136,6 +136,7 @@ func (a *API) getTask(w http.ResponseWriter, r *http.Request, actor string) erro
 func (a *API) createTask(w http.ResponseWriter, r *http.Request, actor string) error {
 	var in struct {
 		Title       string `json:"title"`
+		Type        string `json:"type"`
 		Description string `json:"description"`
 		Owner       string `json:"owner"`
 		State       string `json:"state"`
@@ -163,7 +164,7 @@ func (a *API) updateTask(w http.ResponseWriter, r *http.Request, actor string) e
 		return err
 	}
 	readOnly := append([]string{"creator", "comments", "last_comment_id"}, readOnlyRecord...)
-	if err := p.allow(readOnly, "title", "description", "owner", "state", "substate", "priority"); err != nil {
+	if err := p.allow(readOnly, "title", "type", "description", "owner", "state", "substate", "priority"); err != nil {
 		return err
 	}
 	var patch service.TaskPatch
@@ -173,6 +174,7 @@ func (a *API) updateTask(w http.ResponseWriter, r *http.Request, actor string) e
 		nullable bool
 	}{
 		{"title", &patch.Title, false},
+		{"type", &patch.Type, false},
 		{"description", &patch.Description, true},
 		{"owner", &patch.Owner, false},
 		{"state", &patch.State, false},
@@ -411,6 +413,7 @@ func (a *API) getEnums(w http.ResponseWriter, r *http.Request, actor string) err
 		"project_states": enumValues(model.ProjectStates),
 		"task_states":    enumValues(model.TaskStates),
 		"substates":      subs,
+		"task_types":     enumValues(model.TaskTypes),
 		"url_types":      enumValues(model.URLTypes),
 		"roles":          enumValues(model.Roles),
 	})

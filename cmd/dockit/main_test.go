@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/pdutton/DockIt/internal/auth"
+	"github.com/pdutton/DockIt/internal/model"
 	"github.com/pdutton/DockIt/internal/store"
 )
 
@@ -157,7 +159,7 @@ func TestUnlockNotADataset(t *testing.T) {
 
 func TestVersion(t *testing.T) {
 	r := dockit(t, "", nil, "version")
-	if r.code != 0 || !strings.Contains(r.stdout, "dockit ") || !strings.Contains(r.stdout, "dataset format 1") {
+	if r.code != 0 || !strings.Contains(r.stdout, "dockit ") || !strings.Contains(r.stdout, fmt.Sprintf("dataset format %d", model.FormatCurrent)) {
 		t.Errorf("version: %+v", r)
 	}
 }
@@ -277,7 +279,7 @@ func TestServeFlags(t *testing.T) {
 func TestUpgradeCommand(t *testing.T) {
 	dir := initDataset(t)
 	r := dockit(t, "", nil, "upgrade", dir)
-	if r.code != 0 || !strings.Contains(r.stdout, "already in format 1") {
+	if r.code != 0 || !strings.Contains(r.stdout, fmt.Sprintf("already in format %d", model.FormatCurrent)) {
 		t.Errorf("upgrade of current dataset: %+v", r)
 	}
 	if r := dockit(t, "", nil, "upgrade", t.TempDir()); r.code != 1 || !strings.Contains(r.stderr, "not a DockIt dataset") {

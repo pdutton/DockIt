@@ -244,6 +244,7 @@ func (t *Task) Validate() []*FieldError {
 	p.add(
 		checkVersion("version", t.Version),
 		checkText("title", t.Title, MaxTitleLen),
+		checkEnum("type", TaskTypes, t.Type),
 		checkMarkdown("description", t.Description),
 		checkUserID("creator", t.Creator),
 		checkUserID("owner", t.Owner),

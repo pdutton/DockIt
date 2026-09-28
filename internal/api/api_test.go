@@ -191,6 +191,11 @@ func TestProjects(t *testing.T) {
 	if r.errField() != "name" {
 		t.Errorf("field = %q", r.errField())
 	}
+	r = f.do("POST", "/projects/WEB/tasks", "mem", `{"title":"x","type":"chore"}`)
+	f.want(r, 422, "invalid")
+	if r.errField() != "type" {
+		t.Errorf("field = %q", r.errField())
+	}
 	f.want(f.do("POST", "/projects", "admin", `{"id":"NEW","name":"x","colour":"red"}`), 400, "bad_request")
 	f.want(f.do("POST", "/projects", "admin", `{"id":"NEW",`), 400, "bad_request")
 	f.want(f.do("POST", "/projects", "admin", `{"id":"NEW","name":"x"} {}`), 400, "bad_request")
@@ -253,10 +258,10 @@ func TestTasks(t *testing.T) {
 	f.want(f.do("POST", "/projects/WEB/tasks", "view", `{"title":"x"}`), 403, "forbidden")
 	r := f.do("POST", "/projects/WEB/tasks", "mem", `{"title":"First","priority":2}`)
 	f.want(r, 201, "")
-	if r.header.Get("Location") != Prefix+"/tasks/WEB-1" || r.obj()["owner"] != "mem" {
+	if r.header.Get("Location") != Prefix+"/tasks/WEB-1" || r.obj()["owner"] != "mem" || r.obj()["type"] != "task" {
 		t.Errorf("created %s %v", r.body, r.header)
 	}
-	f.want(f.do("POST", "/projects/WEB/tasks", "mem", `{"title":"Second","owner":"admin","state":"paused"}`), 201, "")
+	f.want(f.do("POST", "/projects/WEB/tasks", "mem", `{"title":"Second","type":"documentation","owner":"admin","state":"paused"}`), 201, "")
 	f.want(f.do("POST", "/projects/NOPE/tasks", "mem", `{"title":"x"}`), 404, "not_found")
 	r = f.do("POST", "/projects/WEB/tasks", "mem", `{"title":"x","state":"complete"}`)
 	f.want(r, 422, "invalid")
@@ -288,11 +293,11 @@ func TestTasks(t *testing.T) {
 	f.want(f.do("GET", "/projects/WEB/tasks?priority=9", "view", nil), 400, "bad_request")
 	f.want(f.do("GET", "/projects/WEB/tasks?sort=title", "view", nil), 400, "bad_request")
 
-	r = f.do("PATCH", "/tasks/WEB-1", "mem", `{"state":"complete","substate":"done"}`, "If-Match", `"1"`)
+	r = f.do("PATCH", "/tasks/WEB-1", "mem", `{"state":"complete","substate":"done","type":"bugfix"}`, "If-Match", `"1"`)
 	f.want(r, 200, "")
 	r = f.do("PATCH", "/tasks/WEB-1", "mem", `{"state":"new","substate":null,"description":"Now **bold**"}`, "If-Match", `"2"`)
 	f.want(r, 200, "")
-	if r.obj()["substate"] != nil || r.obj()["description"] != "Now **bold**" {
+	if r.obj()["substate"] != nil || r.obj()["description"] != "Now **bold**" || r.obj()["type"] != "bugfix" {
 		t.Errorf("patched %s", r.body)
 	}
 	f.want(f.do("PATCH", "/tasks/WEB-1", "mem", `{"creator":"admin"}`, "If-Match", `"3"`), 400, "bad_request")
@@ -416,8 +421,10 @@ func TestEnums(t *testing.T) {
 	f.want(r, 200, "")
 	subs, _ := r.obj()["substates"].(map[string]any)
 	states, _ := r.obj()["task_states"].([]any)
+	types, _ := r.obj()["task_types"].([]any)
 	if len(subs["complete"].([]any)) != 2 || len(states) != 5 ||
-		states[1].(map[string]any)["display"] != "In Progress" {
+		states[1].(map[string]any)["display"] != "In Progress" ||
+		len(types) != 5 || types[0].(map[string]any)["display"] != "Bug Fix" {
 		t.Errorf("enums = %s", r.body)
 	}
 }

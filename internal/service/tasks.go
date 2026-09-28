@@ -10,6 +10,7 @@ import (
 // NewTask is the input for CreateTask.
 type NewTask struct {
 	Title       string
+	Type        string // defaults to task
 	Description string
 	Owner       string // defaults to the creator
 	State       string // defaults to new
@@ -20,6 +21,7 @@ type NewTask struct {
 // TaskPatch is the input for UpdateTask.  Nil fields are left as they are.
 type TaskPatch struct {
 	Title       *string
+	Type        *string
 	Description *string
 	Owner       *string
 	State       *string
@@ -104,6 +106,7 @@ func (s *Service) CreateTask(actor, pid string, in NewTask) (*model.Task, error)
 		ID:          model.TaskID(pid, s.x.NextTaskNumber(pid)),
 		Version:     1,
 		Title:       in.Title,
+		Type:        cmp.Or(in.Type, model.DefaultTaskType),
 		Description: in.Description,
 		Creator:     u.ID,
 		Owner:       cmp.Or(in.Owner, u.ID),
@@ -148,6 +151,7 @@ func (s *Service) UpdateTask(actor, tid string, version int, patch TaskPatch) (*
 
 	changed := fieldSet{}
 	set(&t.Title, patch.Title, "title", changed)
+	set(&t.Type, patch.Type, "type", changed)
 	set(&t.Description, patch.Description, "description", changed)
 	set(&t.Owner, patch.Owner, "owner", changed)
 	set(&t.State, patch.State, "state", changed)
