@@ -46,6 +46,8 @@ type Options struct {
 	// only; the caller ensures the server is bound to localhost.
 	DevUser string
 	Logger  *slog.Logger
+	// Version is the build version, shown in the page header.
+	Version string
 	// Assets overrides the embedded templates and static files (for tests).
 	Assets fs.FS
 }
@@ -77,6 +79,9 @@ func New(svc *service.Service, opts Options) (*Web, error) {
 	}
 	if w.log == nil {
 		w.log = slog.New(slog.DiscardHandler)
+	}
+	if w.opts.Version == "" {
+		w.opts.Version = "dev"
 	}
 	assets := opts.Assets
 	if assets == nil {
@@ -252,12 +257,14 @@ type view struct {
 	Submission string // the submission key for this page's forms
 	Path       string
 	Data       any
+	Version    string // the build version
+	Format     int    // the dataset format; serve only opens the current one
 }
 
 // render executes a page into a buffer first, so a template error becomes a
 // clean error page rather than half a page.
 func (w *Web) render(rw http.ResponseWriter, r *http.Request, c *ctx, status int, page, title string, data any) {
-	v := view{Title: title, Path: r.URL.Path, Data: data}
+	v := view{Title: title, Path: r.URL.Path, Data: data, Version: w.opts.Version, Format: model.FormatCurrent}
 	if c != nil {
 		v.Me, v.CSRF, v.Submission = c.me, c.session.csrf, randomToken()
 	}

@@ -111,6 +111,7 @@ func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- 
 		Secure:  certFile != "" || strings.HasPrefix(cfg.baseURL, "https://"),
 		DevUser: devUser,
 		Logger:  log,
+		Version: buildVersion(),
 	})
 	if err != nil {
 		return err

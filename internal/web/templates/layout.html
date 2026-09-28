@@ -9,7 +9,11 @@
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="/">DockIt</a>
+  {{/* Only logged-in users see the version; strangers need not know it. */}}
+  <div class="home">
+    <a class="brand" href="/">DockIt</a>
+    {{if .Me}}<span class="version" title="DockIt {{.Version}}, dataset format {{.Format}}">{{.Version}} · format {{.Format}}</span>{{end}}
+  </div>
   {{if .Me}}
   <nav>
     <a href="/"{{if eq .Path "/"}} aria-current="page"{{end}}>Projects</a>

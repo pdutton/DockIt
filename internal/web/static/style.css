@@ -46,7 +46,9 @@ h2 { font-size: 1.25rem; margin-top: 2rem; }
   display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between;
   padding: 0.6rem 1rem; border-bottom: 1px solid var(--line); background: var(--card);
 }
+.home { display: flex; gap: 0.6rem; align-items: baseline; }
 .brand { font-weight: 700; text-decoration: none; color: var(--fg); }
+.version { color: var(--muted); font-size: 0.8rem; }
 .top nav { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
 .top nav a { text-decoration: none; }
 .top nav a[aria-current] { font-weight: 600; text-decoration: underline; }
