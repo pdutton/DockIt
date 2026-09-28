@@ -306,15 +306,15 @@ func TestTasksAndComments(t *testing.T) {
 	f := newFixture(t)
 	mem := f.login("mem")
 
-	f.want(mem.get("/projects/WEB/tasks/new"), 200, "New task")
+	f.want(mem.get("/projects/WEB/tasks/new"), 200, "New task", `<option value="task" selected>Task</option>`)
 	f.want(mem.post("/projects/WEB/tasks", "title", "", "owner", "mem", "state", "new", "priority", "3"), 422, "required")
 	f.want(mem.post("/projects/WEB/tasks", "title", "x", "owner", "mem", "state", "complete", "priority", "3"), 422)
-	p := mem.post("/projects/WEB/tasks", "title", "Fix the logo", "description", "It is *wrong*",
+	p := mem.post("/projects/WEB/tasks", "title", "Fix the logo", "type", "feature", "description", "It is *wrong*",
 		"owner", "mem", "state", "new", "substate", "", "priority", "2")
 	if p.status != http.StatusSeeOther || p.location != "/tasks/WEB-1" {
 		t.Fatalf("create task: %d %s %s", p.status, p.location, p.body)
 	}
-	f.want(mem.get("/tasks/WEB-1"), 200, "Fix the logo", "<em>wrong</em>")
+	f.want(mem.get("/tasks/WEB-1"), 200, "Fix the logo", "<em>wrong</em>", "<dd>Feature</dd>")
 	f.want(mem.get("/projects/WEB?state=new&sort=priority"), 200, "WEB-1")
 	if p := mem.get("/projects/WEB?state=paused"); strings.Contains(p.body, "Fix the logo") {
 		t.Error("filter did not filter")
@@ -329,7 +329,7 @@ func TestTasksAndComments(t *testing.T) {
 	f.want(mem.get("/projects/WEB"), 200, "WEB-1", `value="new" checked`, `value="complete">`, `value="deferred">`)
 
 	// Edit, then a conflicting edit from the old version.
-	p = mem.post("/tasks/WEB-1", "version", "1", "title", "Fix the logo", "description", "", "owner", "mem",
+	p = mem.post("/tasks/WEB-1", "version", "1", "title", "Fix the logo", "type", "bugfix", "description", "", "owner", "mem",
 		"state", "complete", "substate", "done", "priority", "2")
 	if p.status != http.StatusSeeOther {
 		t.Fatalf("edit task: %d %s", p.status, p.body)
@@ -338,8 +338,8 @@ func TestTasksAndComments(t *testing.T) {
 		t.Error("complete task shown by default")
 	}
 	// A submitted form with no state ticked shows every state, and ticks them all.
-	f.want(mem.get("/projects/WEB?sort="), 200, "Fix the logo", `value="complete" checked`, `value="deferred" checked`)
-	f.want(mem.post("/tasks/WEB-1", "version", "1", "title", "Other title", "owner", "mem",
+	f.want(mem.get("/projects/WEB?sort="), 200, "Fix the logo", "<td>Bug Fix</td>", `value="complete" checked`, `value="deferred" checked`)
+	f.want(mem.post("/tasks/WEB-1", "version", "1", "title", "Other title", "type", "task", "owner", "mem",
 		"state", "paused", "priority", "5"), 409, "Someone else changed this task", `value="Other title"`)
 
 	// Comments: add, edit own, others cannot edit, delete.

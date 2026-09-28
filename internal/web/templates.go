@@ -43,6 +43,7 @@ var funcs = template.FuncMap{
 
 	"projectState": func(id string) template.HTML { return enumTag(model.ProjectStates, id) },
 	"taskState":    func(id string) template.HTML { return enumTag(model.TaskStates, id) },
+	"taskType":     func(id string) template.HTML { return enumTag(model.TaskTypes, id) },
 	"urlType":      func(id string) template.HTML { return enumTag(model.URLTypes, id) },
 	"role":         func(id string) template.HTML { return enumTag(model.Roles, id) },
 	"substate": func(state, id string) template.HTML {
@@ -54,6 +55,7 @@ var funcs = template.FuncMap{
 
 	"projectStates": model.ProjectStates.Values,
 	"taskStates":    model.TaskStates.Values,
+	"taskTypes":     model.TaskTypes.Values,
 	"urlTypes":      model.URLTypes.Values,
 	"roles":         model.Roles.Values,
 	"allSubstates":  allSubstates,

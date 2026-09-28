@@ -3,6 +3,7 @@
 <p class="crumbs"><a href="/projects/{{$d.Project.ID}}">{{$d.Project.Name}}</a></p>
 <h1><span class="id">{{$t.ID}}</span> {{$t.Title}}</h1>
 <dl class="facts">
+  <dt>Type</dt><dd>{{taskType $t.Type}}</dd>
   <dt>State</dt><dd>{{taskState $t.State}}{{if $t.Substate}} ({{substate $t.State $t.Substate}}){{end}}</dd>
   <dt>Priority</dt><dd>{{$t.Priority}}</dd>
   <dt>Owner</dt><dd>{{$t.Owner}}</dd>
@@ -21,6 +22,7 @@
     Their version is shown above the form. Your changes are still in the form; submit again to replace theirs.</p>
     <dl>
       <dt>Title</dt><dd>{{.Title}}</dd>
+      <dt>Type</dt><dd>{{taskType .Type}}</dd>
       <dt>State</dt><dd>{{taskState .State}}{{if .Substate}} ({{substate .State .Substate}}){{end}}</dd>
       <dt>Priority</dt><dd>{{.Priority}}</dd>
       <dt>Owner</dt><dd>{{.Owner}}</dd>

@@ -115,7 +115,7 @@ func TestOpenRefusesBrokenDataset(t *testing.T) {
 	// A task owned by a user who does not exist is an error.
 	st, err := store.Open(f.root)
 	f.ok(err)
-	f.ok(st.WriteTask(&model.Task{ID: "WEB-1", Version: 1, Title: "x", Creator: "ghost", Owner: "ghost",
+	f.ok(st.WriteTask(&model.Task{ID: "WEB-1", Version: 1, Title: "x", Type: model.TypeTask, Creator: "ghost", Owner: "ghost",
 		State: model.TaskNew, Priority: 3, Created: t0, Modified: t0}))
 	st.Close()
 
@@ -255,14 +255,14 @@ func TestCreateTask(t *testing.T) {
 
 	t1, err := s.CreateTask("mem", "WEB", NewTask{Title: "First"})
 	f.ok(err)
-	if t1.ID != "WEB-1" || t1.Creator != "mem" || t1.Owner != "mem" || t1.State != model.TaskNew ||
-		t1.Priority != 3 || t1.Version != 1 {
+	if t1.ID != "WEB-1" || t1.Type != model.TypeTask || t1.Creator != "mem" || t1.Owner != "mem" ||
+		t1.State != model.TaskNew || t1.Priority != 3 || t1.Version != 1 {
 		t.Errorf("task = %+v", t1)
 	}
-	t2, err := s.CreateTask("admin", "WEB", NewTask{Title: "Second", Owner: "mem2", Priority: 1,
+	t2, err := s.CreateTask("admin", "WEB", NewTask{Title: "Second", Type: model.TypeBugfix, Owner: "mem2", Priority: 1,
 		State: model.TaskComplete, Substate: model.SubstateRejected})
 	f.ok(err)
-	if t2.ID != "WEB-2" || t2.Owner != "mem2" || t2.Priority != 1 || t2.Substate != model.SubstateRejected {
+	if t2.ID != "WEB-2" || t2.Type != model.TypeBugfix || t2.Owner != "mem2" || t2.Priority != 1 || t2.Substate != model.SubstateRejected {
 		t.Errorf("task = %+v", t2)
 	}
 
@@ -270,6 +270,8 @@ func TestCreateTask(t *testing.T) {
 	wantErr(t, err, ErrNotFound)
 	_, err = s.CreateTask("mem", "WEB", NewTask{Title: ""})
 	wantInvalid(t, err, "title")
+	_, err = s.CreateTask("mem", "WEB", NewTask{Title: "x", Type: "chore"})
+	wantInvalid(t, err, "type")
 	_, err = s.CreateTask("mem", "WEB", NewTask{Title: "x", State: model.TaskComplete})
 	wantInvalid(t, err, "substate")
 	_, err = s.CreateTask("mem", "WEB", NewTask{Title: "x", Substate: model.SubstateDone})
@@ -321,6 +323,10 @@ func TestUpdateTask(t *testing.T) {
 		t.Errorf("substate not cleared: %+v", task)
 	}
 
+	// Clients cannot set an unknown type.
+	_, err = s.UpdateTask("mem", "WEB-1", 3, TaskPatch{Type: ptr("chore")})
+	wantInvalid(t, err, "type")
+
 	// Conflicting edit.
 	cur := wantConflict(t, func() error {
 		_, err := s.UpdateTask("mem2", "WEB-1", 2, TaskPatch{Priority: ptr(1)})
@@ -350,7 +356,7 @@ func TestUnknownStatePreserved(t *testing.T) {
 	f.s.Close()
 	st, err := store.Open(f.root)
 	f.ok(err)
-	f.ok(st.WriteTask(&model.Task{ID: "WEB-1", Version: 1, Title: "Old", Creator: "mem", Owner: "mem",
+	f.ok(st.WriteTask(&model.Task{ID: "WEB-1", Version: 1, Title: "Old", Type: model.TypeTask, Creator: "mem", Owner: "mem",
 		State: "someday", Priority: 3, Created: t0, Modified: t0}))
 	st.Close()
 

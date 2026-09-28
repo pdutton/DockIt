@@ -12,11 +12,14 @@ import (
 // upgraded, and only FormatCurrent is served.
 const (
 	FormatMin     = 1
-	FormatCurrent = 1
+	FormatCurrent = 2
 )
 
 // DefaultPriority is the priority of a task when none is given.
 const DefaultPriority = 3
+
+// DefaultTaskType is the type of a task when none is given.
+const DefaultTaskType = TypeTask
 
 // Struct field order below is the order fields are written to disk, so that
 // files diff cleanly.  Do not reorder fields casually.
@@ -104,6 +107,7 @@ type Task struct {
 	ID            string    `yaml:"id" json:"id"`
 	Version       int       `yaml:"version" json:"version"`
 	Title         string    `yaml:"title" json:"title"`
+	Type          string    `yaml:"type" json:"type"`
 	Description   string    `yaml:"description,omitempty" json:"description,omitempty"`
 	Creator       string    `yaml:"creator" json:"creator"`
 	Owner         string    `yaml:"owner" json:"owner"`

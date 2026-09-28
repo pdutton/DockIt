@@ -27,9 +27,9 @@ type Migration func(root string) error
 // Migrations maps a format n to the migration from n to n+1.  An additive
 // change (a new optional field or enumeration value) needs no migration at
 // all: Run only has to bump the format number, so its entry is nil.
-//
-// Format 1 is the first format, so there are none yet.
-var Migrations = map[int]Migration{}
+var Migrations = map[int]Migration{
+	1: addTaskType,
+}
 
 // ErrCurrent is returned when the dataset is already in the target format.
 var ErrCurrent = errors.New("dataset is already in the current format")

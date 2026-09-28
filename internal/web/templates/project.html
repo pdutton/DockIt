@@ -52,12 +52,13 @@
 
 {{if .Data.Tasks}}
 <table>
-  <thead><tr><th>ID</th><th>Title</th><th>Owner</th><th>State</th><th>Priority</th><th>Modified</th></tr></thead>
+  <thead><tr><th>ID</th><th>Title</th><th>Type</th><th>Owner</th><th>State</th><th>Priority</th><th>Modified</th></tr></thead>
   <tbody>
   {{range .Data.Tasks}}
     <tr>
       <td><a href="/tasks/{{.ID}}">{{.ID}}</a></td>
       <td><a href="/tasks/{{.ID}}">{{.Title}}</a></td>
+      <td>{{taskType .Type}}</td>
       <td>{{.Owner}}</td>
       <td>{{taskState .State}}{{if .Substate}} ({{substate .State .Substate}}){{end}}</td>
       <td class="num">{{.Priority}}</td>

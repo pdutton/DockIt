@@ -239,6 +239,7 @@ func (w *Web) projectView(rw http.ResponseWriter, r *http.Request, c *ctx) error
 
 type taskForm struct {
 	Title       string
+	Type        string
 	Description string
 	Owner       string
 	State       string
@@ -248,12 +249,13 @@ type taskForm struct {
 }
 
 func taskFormFrom(t *model.Task) taskForm {
-	return taskForm{t.Title, t.Description, t.Owner, t.State, t.Substate, t.Priority, t.Version}
+	return taskForm{t.Title, t.Type, t.Description, t.Owner, t.State, t.Substate, t.Priority, t.Version}
 }
 
 func readTaskForm(r *http.Request) taskForm {
 	return taskForm{
 		Title:       r.PostForm.Get("title"),
+		Type:        r.PostForm.Get("type"),
 		Description: normalizeNewlines(r.PostForm.Get("description")),
 		Owner:       r.PostForm.Get("owner"),
 		State:       r.PostForm.Get("state"),
@@ -300,7 +302,7 @@ func (w *Web) taskNew(rw http.ResponseWriter, r *http.Request, c *ctx) error {
 	}
 	w.render(rw, r, c, http.StatusOK, "task_new", "New task in "+p.Name, taskNewData{
 		Project: p, Owners: owners,
-		Form: taskForm{Owner: c.me.ID, State: model.TaskNew, Priority: model.DefaultPriority},
+		Form: taskForm{Type: model.DefaultTaskType, Owner: c.me.ID, State: model.TaskNew, Priority: model.DefaultPriority},
 	})
 	return nil
 }
@@ -309,7 +311,7 @@ func (w *Web) taskCreate(rw http.ResponseWriter, r *http.Request, c *ctx) error 
 	pid := r.PathValue("pid")
 	f := readTaskForm(r)
 	t, err := w.svc.CreateTask(c.me.ID, pid, service.NewTask{
-		Title: f.Title, Description: f.Description, Owner: f.Owner,
+		Title: f.Title, Type: f.Type, Description: f.Description, Owner: f.Owner,
 		State: f.State, Substate: f.Substate, Priority: f.Priority,
 	})
 	if err != nil {
@@ -381,7 +383,7 @@ func (w *Web) taskUpdate(rw http.ResponseWriter, r *http.Request, c *ctx) error 
 	tid := r.PathValue("tid")
 	f := readTaskForm(r)
 	_, err := w.svc.UpdateTask(c.me.ID, tid, f.Version, service.TaskPatch{
-		Title: &f.Title, Description: &f.Description, Owner: &f.Owner,
+		Title: &f.Title, Type: &f.Type, Description: &f.Description, Owner: &f.Owner,
 		State: &f.State, Substate: &f.Substate, Priority: &f.Priority,
 	})
 	if err != nil {

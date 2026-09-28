@@ -1,6 +1,7 @@
 package index
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,7 +21,7 @@ func user(id, role string) (*model.User, *model.Auth) {
 }
 
 func task(id string) *model.Task {
-	return &model.Task{ID: id, Version: 1, Title: "Task " + id, Creator: "admin", Owner: "admin",
+	return &model.Task{ID: id, Version: 1, Title: "Task " + id, Type: model.TypeTask, Creator: "admin", Owner: "admin",
 		State: model.TaskNew, Priority: 3, Created: ts, Modified: ts}
 }
 
@@ -262,7 +263,7 @@ func dump(r *Report) string {
 
 func TestLoadFormat(t *testing.T) {
 	root := newDataset(t)
-	edit(t, root, "dockit.yaml", "format: 1", "format: 99")
+	edit(t, root, "dockit.yaml", fmt.Sprintf("format: %d", model.FormatCurrent), "format: 99")
 	x, r := Load(root)
 	if x != nil || r.OK() || !strings.Contains(dump(r), "newer than this build supports") {
 		t.Errorf("x = %v, report:\n%s", x, dump(r))
