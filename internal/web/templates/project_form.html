@@ -16,6 +16,7 @@
 {{end}}
 <form method="post" action="{{if $d.New}}/projects{{else}}/projects/{{$d.Form.ID}}{{end}}" class="card">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="submission" value="{{.Submission}}">
   <input type="hidden" name="version" value="{{$d.Form.Version}}">
   {{if $d.New}}
   <label>ID <span class="hint">2–10 characters, A–Z then A–Z or 0–9; cannot be changed later</span>

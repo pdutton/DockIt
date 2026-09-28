@@ -9,6 +9,7 @@
   {{if $d.Changed}}<p class="notice">Your password has been changed.</p>{{end}}
   {{with $d.PasswordError}}<p class="error">{{.}}</p>{{end}}
   <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="submission" value="{{.Submission}}">
   <label>Current password
     <input name="current" type="password" autocomplete="current-password" required>
   </label>
@@ -43,6 +44,7 @@
         <td>
           <form method="post" action="/account/tokens/{{.ID}}/delete" class="inline">
             <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <input type="hidden" name="submission" value="{{$.Submission}}">
             <button type="submit" class="danger">Revoke</button>
           </form>
         </td>
@@ -55,6 +57,7 @@
   {{end}}
   <form method="post" action="/account/tokens" class="row">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="submission" value="{{.Submission}}">
     <label>New token name
       <input name="name" value="{{$d.TokenName}}" placeholder="e.g. laptop script" required maxlength="200">
     </label>

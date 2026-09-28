@@ -52,26 +52,28 @@ type Options struct {
 
 // Web serves the Web UI.
 type Web struct {
-	svc       *service.Service
-	opts      Options
-	log       *slog.Logger
-	sessions  *sessions
-	userFails *ratelimit.Limiter
-	addrFails *ratelimit.Limiter
-	pages     map[string]*template.Template
-	mux       *http.ServeMux
+	svc         *service.Service
+	opts        Options
+	log         *slog.Logger
+	sessions    *sessions
+	submissions *submissions
+	userFails   *ratelimit.Limiter
+	addrFails   *ratelimit.Limiter
+	pages       map[string]*template.Template
+	mux         *http.ServeMux
 }
 
 // New returns the Web UI handler.
 func New(svc *service.Service, opts Options) (*Web, error) {
 	w := &Web{
-		svc:       svc,
-		opts:      opts,
-		log:       opts.Logger,
-		sessions:  newSessions(),
-		userFails: ratelimit.New(loginFailsPerUser, loginFailWindow),
-		addrFails: ratelimit.New(loginFailsPerAddr, loginFailWindow),
-		mux:       http.NewServeMux(),
+		svc:         svc,
+		opts:        opts,
+		log:         opts.Logger,
+		sessions:    newSessions(),
+		submissions: newSubmissions(),
+		userFails:   ratelimit.New(loginFailsPerUser, loginFailWindow),
+		addrFails:   ratelimit.New(loginFailsPerAddr, loginFailWindow),
+		mux:         http.NewServeMux(),
 	}
 	if w.log == nil {
 		w.log = slog.New(slog.DiscardHandler)
@@ -167,8 +169,9 @@ func (w *Web) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 // authenticated resolves the session and runs f.  Unauthenticated requests
 // are sent to the login page.  Every POST must carry the session's CSRF
-// token.  A user who must change their password can reach only the account
-// page until they do.
+// token, and a POST that repeats an earlier one gets its response instead of
+// running again (see once).  A user who must change their password can
+// reach only the account page until they do.
 func (w *Web) authenticated(f pageFunc) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		ss := w.session(r)
@@ -211,9 +214,16 @@ func (w *Web) authenticated(f pageFunc) http.Handler {
 			return
 		}
 
-		if err := f(rw, r, c); err != nil {
-			w.fail(rw, r, c, err)
+		run := func(rw http.ResponseWriter) {
+			if err := f(rw, r, c); err != nil {
+				w.fail(rw, r, c, err)
+			}
 		}
+		if r.Method == http.MethodPost && r.PostForm.Get("submission") != "" {
+			w.once(rw, r, submissionID(ss, r), run)
+			return
+		}
+		run(rw)
 	})
 }
 
@@ -236,11 +246,12 @@ func (w *Web) errorPage(rw http.ResponseWriter, r *http.Request, c *ctx, status 
 
 // view is the data every page template receives.
 type view struct {
-	Title string
-	Me    *model.User
-	CSRF  string
-	Path  string
-	Data  any
+	Title      string
+	Me         *model.User
+	CSRF       string
+	Submission string // the submission key for this page's forms
+	Path       string
+	Data       any
 }
 
 // render executes a page into a buffer first, so a template error becomes a
@@ -248,7 +259,7 @@ type view struct {
 func (w *Web) render(rw http.ResponseWriter, r *http.Request, c *ctx, status int, page, title string, data any) {
 	v := view{Title: title, Path: r.URL.Path, Data: data}
 	if c != nil {
-		v.Me, v.CSRF = c.me, c.session.csrf
+		v.Me, v.CSRF, v.Submission = c.me, c.session.csrf, randomToken()
 	}
 	t := w.pages[page]
 	var buf bytes.Buffer

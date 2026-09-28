@@ -416,6 +416,10 @@ task.)
 - Enumerated fields are always shown via the built-in display strings, never as raw stored values
   (except unknown ids, which are shown raw with a warning, as noted above).
 - A strict `Content-Security-Policy` header (no inline scripts) as defence in depth.
+- A form is acted on once.  Each rendered form carries a random submission key.  A POST that repeats an
+  earlier one in the same session exactly, key and all (a double click or a retry), is not run again: it
+  waits for the first and gets its response, kept for one minute.  A form changed and sent again is a
+  new submission.  In the browser, a second click while a form is sending is ignored.
 - Timestamps are sent in UTC and converted to local time in the browser.
 
 ## REST API
