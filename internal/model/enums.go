@@ -72,8 +72,9 @@ const (
 
 // Substates of TaskComplete.
 const (
-	SubstateDone     = "done"
-	SubstateRejected = "rejected"
+	SubstateDone      = "done"
+	SubstateRejected  = "rejected"
+	SubstateDuplicate = "duplicate"
 )
 
 // Task types.
@@ -134,6 +135,7 @@ var (
 		TaskComplete: newEnum("complete substate",
 			EnumValue{SubstateDone, "Done"},
 			EnumValue{SubstateRejected, "Rejected"},
+			EnumValue{SubstateDuplicate, "Duplicate"},
 		),
 	}
 

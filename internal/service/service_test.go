@@ -301,6 +301,13 @@ func TestCreateTask(t *testing.T) {
 	if x := f.reload(); x.TaskCount() != 3 || x.Task("WEB-2").Owner != "mem2" {
 		t.Error("tasks on disk wrong")
 	}
+
+	// A task can be closed as a duplicate.
+	dup, err := s.CreateTask("mem", "WEB", NewTask{Title: "Again", State: model.TaskComplete, Substate: model.SubstateDuplicate})
+	f.ok(err)
+	if dup.Substate != model.SubstateDuplicate {
+		t.Errorf("task = %+v", dup)
+	}
 }
 
 func TestUpdateTask(t *testing.T) {

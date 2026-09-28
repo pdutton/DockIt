@@ -447,7 +447,8 @@ func TestEnums(t *testing.T) {
 	states, _ := r.obj()["task_states"].([]any)
 	types, _ := r.obj()["task_types"].([]any)
 	urlTypes, _ := r.obj()["task_url_types"].([]any)
-	if len(subs["complete"].([]any)) != 2 || len(states) != 5 ||
+	complete, _ := subs["complete"].([]any)
+	if len(complete) != 3 || complete[2].(map[string]any)["display"] != "Duplicate" || len(states) != 5 ||
 		states[1].(map[string]any)["display"] != "In Progress" ||
 		len(types) != 6 || types[0].(map[string]any)["display"] != "Bug Fix" ||
 		len(urlTypes) != 1 || urlTypes[0].(map[string]any)["id"] != "pr" {

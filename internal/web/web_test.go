@@ -340,7 +340,8 @@ func TestTasksAndComments(t *testing.T) {
 	f.want(tp, 200, "<dt>Found in</dt><dd>1.0.4</dd>", `name="found_in" value="1.0.4"`,
 		// PR links, one per line with blanks and spaces dropped.
 		"<dt>Pull Requests</dt>", `<a href="https://github.com/example/site/pull/2"`,
-		"https://github.com/example/site/pull/1\nhttps://github.com/example/site/pull/2</textarea>")
+		"https://github.com/example/site/pull/1\nhttps://github.com/example/site/pull/2</textarea>",
+		`<option value="duplicate">Complete: Duplicate</option>`)
 	if strings.Contains(tp.body, "<dt>Resolved in</dt>") {
 		t.Error("empty Resolved in shown")
 	}

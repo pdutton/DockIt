@@ -195,6 +195,7 @@ Initially, only the Complete state will have sub-states:
 
 - Done
 - Rejected
+- Duplicate
 
 The dataset will reference these by immutable id/value, but these values may be mapped to a
 friendly display string that may change over time.
