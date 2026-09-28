@@ -462,6 +462,22 @@ func TestDevUser(t *testing.T) {
 	f.want(f.browser().get("/projects/WEB"), 200, "Website")
 }
 
+// The header shows the version to logged-in users only.
+func TestVersion(t *testing.T) {
+	f := newFixture(t)
+	w, err := New(f.svc, Options{Version: "v1.2.3"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(w)
+	defer srv.Close()
+	f.srv = srv
+	if p := f.browser().get("/login"); strings.Contains(p.body, "v1.2.3") {
+		t.Error("login page shows the version")
+	}
+	f.want(f.login("view").get("/"), 200, `title="DockIt v1.2.3, dataset format 2">v1.2.3 · format 2</span>`)
+}
+
 func TestNotFound(t *testing.T) {
 	f := newFixture(t)
 	b := f.login("view")
