@@ -408,7 +408,9 @@ task.)
 - Server-rendered pages: project list, project detail with its task
   list, task detail with comments and edit form, user admin, and "my account" for password and tokens.
 - Task lists can be filtered by state, owner and priority and sorted by priority or modified time.  This
-  is cheap given the in-memory index.
+  is cheap given the in-memory index.  Several states can be chosen at once; a priority shows tasks of
+  that priority or higher (1 to n).  A list opened with no query shows every state but Complete and
+  Deferred; a submitted form with no state ticked shows every state.
 - Go `html/template` escapes all plain-text fields automatically.
 - Markdown fields (project and task descriptions, comments) are rendered with a CommonMark renderer, then
   passed through an allow-list HTML sanitizer, with raw HTML disabled in the renderer as well.
@@ -432,7 +434,7 @@ POST   /api/v1/projects                         create (admin)
 GET    /api/v1/projects/{pid}
 PATCH  /api/v1/projects/{pid}                   update (admin, If-Match)
 
-GET    /api/v1/projects/{pid}/tasks             list, ?state=&owner=&priority=
+GET    /api/v1/projects/{pid}/tasks             list, ?state=&owner=&priority= (state may repeat)
 POST   /api/v1/projects/{pid}/tasks             create; server assigns the ID
 GET    /api/v1/tasks/{tid}
 PATCH  /api/v1/tasks/{tid}                      update (If-Match)

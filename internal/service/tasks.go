@@ -29,9 +29,10 @@ type TaskPatch struct {
 
 // TaskFilter selects tasks.  Zero fields match everything.
 type TaskFilter struct {
-	State    string
-	Owner    string
-	Priority int
+	States      []string // any of these
+	Owner       string
+	Priority    int // exactly this
+	MaxPriority int // this or higher, that is, a number no greater
 }
 
 // TaskSort orders a task list.
@@ -54,9 +55,10 @@ func (s *Service) Tasks(actor, pid string, f TaskFilter, order TaskSort) ([]*mod
 		return nil, ErrNotFound
 	}
 	tasks := slices.DeleteFunc(s.x.Tasks(pid), func(t *model.Task) bool {
-		return f.State != "" && t.State != f.State ||
+		return len(f.States) > 0 && !slices.Contains(f.States, t.State) ||
 			f.Owner != "" && t.Owner != f.Owner ||
-			f.Priority != 0 && t.Priority != f.Priority
+			f.Priority != 0 && t.Priority != f.Priority ||
+			f.MaxPriority != 0 && t.Priority > f.MaxPriority
 	})
 	// Tasks come from the index in number order, so a stable sort keeps
 	// that as the tie-breaker.

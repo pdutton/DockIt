@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -98,7 +99,7 @@ func (a *API) updateProject(w http.ResponseWriter, r *http.Request, actor string
 
 func (a *API) listTasks(w http.ResponseWriter, r *http.Request, actor string) error {
 	q := r.URL.Query()
-	f := service.TaskFilter{State: q.Get("state"), Owner: q.Get("owner")}
+	f := service.TaskFilter{States: slices.DeleteFunc(q["state"], func(s string) bool { return s == "" }), Owner: q.Get("owner")}
 	if s := q.Get("priority"); s != "" {
 		n, err := strconv.Atoi(s)
 		if err != nil || n < model.MinPriority || n > model.MaxPriority {

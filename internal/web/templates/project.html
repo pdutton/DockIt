@@ -21,12 +21,10 @@
 </div>
 
 <form method="get" class="filters">
-  <label>State
-    <select name="state">
-      <option value="">Any</option>
-      {{range taskStates}}<option value="{{.ID}}"{{if eq .ID $.Data.Filter.State}} selected{{end}}>{{.Display}}</option>{{end}}
-    </select>
-  </label>
+  <fieldset class="states">
+    <legend>State</legend>
+    {{range taskStates}}<label class="check"><input type="checkbox" name="state" value="{{.ID}}"{{if $.Data.StateShown .ID}} checked{{end}}> {{.Display}}</label>{{end}}
+  </fieldset>
   <label>Owner
     <select name="owner">
       <option value="">Anyone</option>
@@ -36,7 +34,7 @@
   <label>Priority
     <select name="priority">
       <option value="">Any</option>
-      {{range priorities}}<option value="{{.}}"{{if eq . $.Data.Filter.Priority}} selected{{end}}>{{.}}</option>{{end}}
+      {{range priorities}}<option value="{{.}}"{{if eq . $.Data.Filter.MaxPriority}} selected{{end}}>{{if eq . 1}}1{{else}}1 – {{.}}{{end}}</option>{{end}}
     </select>
   </label>
   <label>Sort by
