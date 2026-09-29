@@ -134,11 +134,10 @@ created: 2026-09-26T21:54:43Z
 - On startup, DockIt compares `format` to the range it supports:
   - equal: run.
   - older but upgradeable: refuse to serve and tell the operator to run `dockit upgrade`, which rewrites
-    the dataset to the current format in place, after writing a full copy to a sibling backup directory
-    named for the old format and the time, such as `data.format-1.20260927T021500Z`.  `-backup <dir>`
-    puts that directory elsewhere, which a container needs because the dataset's parent is `/`.  Migrations run one
-    format at a time, and `dockit.yaml` records each step as it completes, so a failed upgrade leaves the
-    dataset in the last good format with the original still in the backup.
+    the dataset to the current format in place.  It makes no backup: the operator copies the dataset
+    directory first (`cp -r`), which is simpler than DockIt doing it, especially in a container.
+    Migrations run one format at a time, and `dockit.yaml` records each step as it completes, so a
+    failed upgrade leaves the dataset in the last good format; the operator restores the copy.
   - newer than supported: refuse to run.  This is what "portable between installs of sufficient version"
     means in practice.
 - Upgrades are never performed implicitly by `serve`, so a dataset is never silently made unreadable to

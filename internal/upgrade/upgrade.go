@@ -1,18 +1,13 @@
-// Package upgrade migrates a dataset to the current format, in place, after
-// writing a full backup beside it or in a directory the operator chooses.  Upgrades are never implicit: `dockit
-// serve` refuses an older dataset and tells the operator to run `dockit
-// upgrade`, so a dataset is never silently made unreadable to an older
-// install.
+// Package upgrade migrates a dataset to the current format, in place.  It
+// makes no backup: the operator copies the dataset directory first.  Upgrades
+// are never implicit: `dockit serve` refuses an older dataset and tells the
+// operator to run `dockit upgrade`, so a dataset is never silently made
+// unreadable to an older install.
 package upgrade
 
 import (
 	"errors"
 	"fmt"
-	"io"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"time"
 
 	"github.com/pdutton/DockIt/internal/model"
 	"github.com/pdutton/DockIt/internal/store"
@@ -37,15 +32,13 @@ var ErrCurrent = errors.New("dataset is already in the current format")
 // Result describes a completed upgrade.
 type Result struct {
 	From, To int
-	Backup   string // the backup directory
 }
 
 // Run upgrades the dataset at root to format target using migrations.
-// It takes the dataset lock, copies the whole dataset to a new directory in
-// backupParent (beside root if backupParent is empty), then applies each
-// step in turn, recording the new format after each one.  If a step fails the dataset is left in the last completed
-// format, and the backup holds the original.
-func Run(root, backupParent string, target int, migrations map[int]Migration, now time.Time) (*Result, error) {
+// It takes the dataset lock, then applies each step in turn, recording the new
+// format after each one.  If a step fails the dataset is left in the last
+// completed format.
+func Run(root string, target int, migrations map[int]Migration) (*Result, error) {
 	s, err := store.OpenAnyFormat(root)
 	if err != nil {
 		return nil, err
@@ -68,18 +61,10 @@ func Run(root, backupParent string, target int, migrations map[int]Migration, no
 		}
 	}
 
-	backup, err := backupDir(root, backupParent, from, now)
-	if err != nil {
-		return nil, err
-	}
-	if err := copyTree(root, backup); err != nil {
-		return nil, fmt.Errorf("backing up to %s: %w", backup, err)
-	}
-
 	for n := from; n < target; n++ {
 		if m := migrations[n]; m != nil {
 			if err := m(root); err != nil {
-				return nil, fmt.Errorf("upgrading from format %d to %d: %w (the original is in %s)", n, n+1, err, backup)
+				return nil, fmt.Errorf("upgrading from format %d to %d: %w (restore the dataset from your copy)", n, n+1, err)
 			}
 		}
 		meta.Format = n + 1
@@ -87,81 +72,5 @@ func Run(root, backupParent string, target int, migrations map[int]Migration, no
 			return nil, err
 		}
 	}
-	return &Result{From: from, To: target, Backup: backup}, nil
-}
-
-// backupDir creates and returns a new, empty directory in parent, or beside
-// root if parent is empty, named for the format and time, such as
-// data.format-1.20260927T021500Z.
-func backupDir(root, parent string, format int, now time.Time) (string, error) {
-	abs, err := filepath.Abs(root)
-	if err != nil {
-		return "", err
-	}
-	if parent == "" {
-		parent = filepath.Dir(abs)
-	} else {
-		if parent, err = filepath.Abs(parent); err != nil {
-			return "", err
-		}
-		// The copy would include itself, and the dataset would gain a stray
-		// directory.
-		if rel, err := filepath.Rel(abs, parent); err == nil && filepath.IsLocal(rel) {
-			return "", fmt.Errorf("the backup directory %s is inside the dataset", parent)
-		}
-	}
-	name := fmt.Sprintf("%s.format-%d.%s", filepath.Base(abs), format, now.UTC().Format("20060102T150405Z"))
-	dir := filepath.Join(parent, name)
-	// Mkdir, not MkdirAll: fail rather than mix into an existing directory.
-	if err := os.Mkdir(dir, 0o755); err != nil {
-		return "", err
-	}
-	return dir, nil
-}
-
-// copyTree copies the dataset at src into the empty directory dst, leaving
-// out the lock file and leftover temporary files.  Every file is synced, so
-// the backup is on disk before the dataset is touched.
-func copyTree(src, dst string) error {
-	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, err := filepath.Rel(src, path)
-		if err != nil || rel == "." {
-			return err
-		}
-		if rel == store.LockFile || store.IsTmpName(d.Name()) {
-			return nil
-		}
-		target := filepath.Join(dst, rel)
-		if d.IsDir() {
-			return os.Mkdir(target, 0o755)
-		}
-		if !d.Type().IsRegular() {
-			return fmt.Errorf("%s is not a regular file", path)
-		}
-		return copyFile(path, target)
-	})
-}
-
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		return err
-	}
-	if err := out.Sync(); err != nil {
-		out.Close()
-		return err
-	}
-	return out.Close()
+	return &Result{From: from, To: target}, nil
 }
