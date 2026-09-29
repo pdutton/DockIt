@@ -57,7 +57,7 @@ In a container, pass them as `-e` settings. The image sets two of them:
 | `dockit serve`   | Lock the dataset and serve the web interface at `/` and the REST API under `/api/v1/`. Only one instance may run against a dataset at a time. |
 | `dockit check`   | Validate a dataset: file names match IDs, required fields are present, and references between records resolve. Safe to run while DockIt is running. `-q` prints errors only. Exits 1 if there are errors. |
 | `dockit unlock`  | Remove a stale lock left by an instance that is no longer running. Shows who holds the lock and asks first; `-yes` skips the question. |
-| `dockit upgrade` | Migrate a dataset to the format this DockIt uses, after copying the whole dataset to a backup directory beside it (for example `data.format-1.20260927T021500Z`), or inside the directory given with `-backup`. `serve` never upgrades on its own; it asks you to run this. |
+| `dockit upgrade` | Migrate a dataset, in place, to the format this DockIt uses. It makes no backup, so copy the dataset first. `serve` never upgrades on its own; it asks you to run this. |
 | `dockit version` | Print the build version and the dataset format it supports.      |
 
 Run `dockit <command> -h` for a command's flags.
@@ -74,12 +74,16 @@ podman run --rm -it --userns=keep-id:uid=65532,gid=65532 -v $DOCKIT_DIR:/data:Z 
 
 ## Upgrading
 
-`upgrade` copies the dataset to a backup directory before changing anything. By
-default that goes beside the dataset directory, which in the container is `/`,
-neither writable nor kept, so the README mounts a second directory at `/backup`
-and passes `-backup /backup`. The backup lands there, named for example
-`data.format-1.20260927T021500Z`. Run `check` afterwards, and remove the backup
-once you are happy with the result.
+`upgrade` rewrites the dataset in place and makes no backup, so copy the
+dataset directory first, with DockIt stopped:
+
+```sh
+cp -r $DOCKIT_DIR $DOCKIT_DIR.before-upgrade
+```
+
+Run `check` after upgrading, and remove the copy once you are happy with the
+result. If the upgrade fails, or you go back to the older image, restore the
+copy.
 
 ## Your data
 
@@ -121,13 +125,11 @@ podman volume create dockit-restored
 podman volume import dockit-restored dockit-backup.tar
 ```
 
-Upgrade with a second named volume for the backup; the image's `/backup` is
-owned by its user, so a new volume there is writable:
+To upgrade, stop DockIt, back up the volume as above, then upgrade and check it:
 
 ```sh
 podman stop dockit
-podman volume create dockit-backups
-podman run --rm -v dockit-data:/data -v dockit-backups:/backup dockit upgrade -backup /backup
+podman run --rm -v dockit-data:/data dockit upgrade
 podman run --rm -v dockit-data:/data dockit check
 ```
 

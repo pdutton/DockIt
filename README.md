@@ -52,12 +52,14 @@ Back up the dataset (safe while DockIt runs):
 tar -C $DOCKIT_DIR --exclude=./dockit.lock --exclude='.*.tmp' -cf dockit-backup.tar .
 ```
 
-After building a new image, stop DockIt, upgrade the dataset, and start DockIt again:
+After building a new image, stop DockIt, copy the dataset, upgrade it, and
+start DockIt again. `upgrade` changes the dataset in place and keeps no copy of
+its own:
 
 ```sh
-mkdir -p $DOCKIT_DIR.backups
-podman run --rm --userns=keep-id:uid=65532,gid=65532 -v $DOCKIT_DIR:/data:Z \
-  -v $DOCKIT_DIR.backups:/backup:Z dockit upgrade -backup /backup
+podman stop dockit
+cp -r $DOCKIT_DIR $DOCKIT_DIR.before-upgrade
+podman run --rm --userns=keep-id:uid=65532,gid=65532 -v $DOCKIT_DIR:/data:Z dockit upgrade
 ```
 
 ## More
