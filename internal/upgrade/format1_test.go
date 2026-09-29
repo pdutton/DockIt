@@ -54,7 +54,7 @@ func TestFormat1To2(t *testing.T) {
 	}
 	s.Close()
 
-	if _, err := Run(root, "", 2, Migrations, now); err != nil {
+	if _, err := Run(root, 2, Migrations); err != nil {
 		t.Fatal(err)
 	}
 	for path, w := range want {

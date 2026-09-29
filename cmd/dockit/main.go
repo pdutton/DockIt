@@ -39,7 +39,7 @@ var commands = []command{
 	{"init", "Create a new dataset and its first admin; empty directory only", runInit},
 	{"check", "Validate a dataset offline", runCheck},
 	{"serve", "Take the lock, load the dataset, and serve the Web UI and REST API", runServe},
-	{"upgrade", "Back up a dataset, then migrate it to the current format", runUpgrade},
+	{"upgrade", "Migrate a dataset to the current format, in place", runUpgrade},
 	{"unlock", "Remove a stale lock file after confirming no instance is running", runUnlock},
 	{"version", "Print the build version and supported dataset formats", runVersion},
 }
