@@ -70,7 +70,7 @@ func TestInitLayout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Format != model.FormatCurrent || len(m.DatasetID) != 36 || m.DatasetID[14] != '4' || m.Created.IsZero() {
+	if m.Version() != model.FormatCurrent || len(m.DatasetID) != 36 || m.DatasetID[14] != '4' || m.Created.IsZero() {
 		t.Errorf("bad metadata: %+v", m)
 	}
 
@@ -121,24 +121,78 @@ func TestOpenFormat(t *testing.T) {
 	root := s.Root()
 	s.Close()
 
+	cur := model.FormatCurrent
 	for _, tc := range []struct {
-		format      int
-		upgradeable bool
+		format      model.Format
+		open        bool // Open accepts it
+		upgradeable bool // OpenUpgradeable accepts it too
 	}{
-		{model.FormatCurrent - 1, true},
-		{model.FormatCurrent + 1, false},
-		{0, false},
+		{cur, true, false},
+		{model.Format{Major: cur.Major}, true, false}, // an older minor, or format_minor absent
+		{model.Format{Major: cur.Major, Minor: cur.Minor + 1}, false, false},
+		{model.Format{Major: cur.Major - 1, Minor: 7}, false, true},
+		{model.Format{Major: cur.Major + 1}, false, false},
+		{model.Format{}, false, false},
 	} {
-		os.WriteFile(filepath.Join(root, MetaFile),
-			[]byte("format: "+strconv.Itoa(tc.format)+"\ndataset_id: x\ncreated: 2026-09-26T21:54:43Z\n"), 0o644)
-		_, err := Open(root)
-		var fe *FormatError
-		if !errors.As(err, &fe) || fe.Format != tc.format || fe.Upgradeable() != tc.upgradeable {
-			t.Errorf("format %d: err = %v", tc.format, err)
+		meta := "format: " + strconv.Itoa(tc.format.Major) + "\n"
+		if tc.format.Minor != 0 {
+			meta += "format_minor: " + strconv.Itoa(tc.format.Minor) + "\n"
 		}
-		if _, err := os.Stat(filepath.Join(root, LockFile)); err == nil {
-			t.Errorf("format %d: lock taken on a dataset that was refused", tc.format)
+		os.WriteFile(filepath.Join(root, MetaFile), []byte(meta+"dataset_id: x\ncreated: 2026-09-26T21:54:43Z\n"), 0o644)
+
+		for _, open := range []struct {
+			name   string
+			fn     func(string) (*Store, error)
+			accept bool
+		}{
+			{"Open", Open, tc.open},
+			{"OpenUpgradeable", OpenUpgradeable, tc.open || tc.upgradeable},
+		} {
+			s, err := open.fn(root)
+			if open.accept {
+				if err != nil {
+					t.Errorf("%s format %s: %v", open.name, tc.format, err)
+				} else {
+					if s.Meta().Version() != tc.format {
+						t.Errorf("%s format %s: meta says %s", open.name, tc.format, s.Meta().Version())
+					}
+					s.Close()
+				}
+				continue
+			}
+			var fe *FormatError
+			if !errors.As(err, &fe) || fe.Format != tc.format || fe.Upgradeable() != tc.upgradeable {
+				t.Errorf("%s format %s: err = %v", open.name, tc.format, err)
+			}
+			if _, err := os.Stat(filepath.Join(root, LockFile)); err == nil {
+				t.Errorf("%s format %s: lock taken on a dataset that was refused", open.name, tc.format)
+			}
 		}
+	}
+}
+
+// A dataset from before format_minor existed has no format_minor, and a
+// minor of 0 is not written, so format 2.0 reads and writes as it always did.
+func TestMetaFormatMinor(t *testing.T) {
+	s := newDataset(t)
+	meta := s.Meta()
+	meta.SetVersion(model.Format{Major: 2})
+	if err := s.WriteMeta(meta); err != nil {
+		t.Fatal(err)
+	}
+	if got := readString(t, filepath.Join(s.Root(), MetaFile)); strings.Contains(got, "format_minor") {
+		t.Errorf("format 2.0 wrote format_minor:\n%s", got)
+	}
+	meta.SetVersion(model.Format{Major: 2, Minor: 1})
+	if err := s.WriteMeta(meta); err != nil {
+		t.Fatal(err)
+	}
+	got := readString(t, filepath.Join(s.Root(), MetaFile))
+	if !strings.HasPrefix(got, "format: 2\nformat_minor: 1\ndataset_id: ") {
+		t.Errorf("dockit.yaml:\n%s", got)
+	}
+	if m, err := ReadMeta(s.Root()); err != nil || m.Version() != (model.Format{Major: 2, Minor: 1}) {
+		t.Errorf("read back %+v, %v", m, err)
 	}
 }
 

@@ -159,7 +159,7 @@ func TestUnlockNotADataset(t *testing.T) {
 
 func TestVersion(t *testing.T) {
 	r := dockit(t, "", nil, "version")
-	if r.code != 0 || !strings.Contains(r.stdout, "dockit ") || !strings.Contains(r.stdout, fmt.Sprintf("dataset format %d", model.FormatCurrent)) {
+	if r.code != 0 || !strings.Contains(r.stdout, "dockit ") || !strings.Contains(r.stdout, fmt.Sprintf("dataset format %s", model.FormatCurrent)) {
 		t.Errorf("version: %+v", r)
 	}
 }
@@ -255,6 +255,79 @@ func TestServe(t *testing.T) {
 	}
 }
 
+// setFormat rewrites the dataset's format, as an older or newer build would
+// have left it.
+func setFormat(t *testing.T, dir string, f model.Format) {
+	t.Helper()
+	s, err := store.OpenAnyFormat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	meta := s.Meta()
+	meta.SetVersion(f)
+	if err := s.WriteMeta(meta); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestServeUpdatesFormat(t *testing.T) {
+	if model.FormatCurrent.Minor == 0 {
+		t.Skip("the current format has no older minor")
+	}
+	dir := initDataset(t)
+	older := model.Format{Major: model.FormatCurrent.Major, Minor: model.FormatCurrent.Minor - 1}
+	setFormat(t, dir, older)
+
+	var logBuf bytes.Buffer
+	ctx, cancel := context.WithCancel(context.Background())
+	ready := make(chan string, 1)
+	done := make(chan error, 1)
+	go func() {
+		done <- serve(ctx, slog.New(slog.NewTextHandler(&logBuf, nil)), serveConfig{dir: dir, listen: "127.0.0.1:0"}, ready)
+	}()
+	select {
+	case <-ready:
+	case err := <-done:
+		t.Fatalf("serve exited: %v", err)
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Errorf("serve returned %v", err)
+	}
+
+	// Logged before "DockIt serving", so it sits beside the dataset path.
+	log := logBuf.String()
+	want := fmt.Sprintf("msg=\"dataset format updated\" dataset=%s from=%s to=%s", dir, older, model.FormatCurrent)
+	if i := strings.Index(log, want); i < 0 || i > strings.Index(log, "DockIt serving") {
+		t.Errorf("log does not start with %q:\n%s", want, log)
+	}
+	if m, _ := store.ReadMeta(dir); m.Version() != model.FormatCurrent {
+		t.Errorf("format on disk = %s", m.Version())
+	}
+}
+
+func TestCheckFormat(t *testing.T) {
+	dir := initDataset(t)
+	if model.FormatCurrent.Minor > 0 {
+		// An older minor passes, and check leaves it alone.
+		older := model.Format{Major: model.FormatCurrent.Major, Minor: model.FormatCurrent.Minor - 1}
+		setFormat(t, dir, older)
+		r := dockit(t, "", nil, "check", dir)
+		if r.code != 0 || !strings.Contains(r.stdout, fmt.Sprintf("in format %s; `dockit serve` or `dockit upgrade` will update it to %s", older, model.FormatCurrent)) {
+			t.Errorf("check of format %s: %+v", older, r)
+		}
+		if m, _ := store.ReadMeta(dir); m.Version() != older {
+			t.Errorf("check changed the format to %s", m.Version())
+		}
+	}
+	// An older major cannot be checked until it is upgraded.
+	setFormat(t, dir, model.Format{Major: model.FormatCurrent.Major - 1})
+	if r := dockit(t, "", nil, "check", dir); r.code != 1 || !strings.Contains(r.stdout, "`dockit serve` or `dockit upgrade` will upgrade it") {
+		t.Errorf("check of an older major: %+v", r)
+	}
+}
+
 func TestServeFlags(t *testing.T) {
 	dir := initDataset(t)
 	for _, tc := range []struct {
@@ -279,7 +352,7 @@ func TestServeFlags(t *testing.T) {
 func TestUpgradeCommand(t *testing.T) {
 	dir := initDataset(t)
 	r := dockit(t, "", nil, "upgrade", dir)
-	if r.code != 0 || !strings.Contains(r.stdout, fmt.Sprintf("already in format %d", model.FormatCurrent)) {
+	if r.code != 0 || !strings.Contains(r.stdout, fmt.Sprintf("already in format %s", model.FormatCurrent)) {
 		t.Errorf("upgrade of current dataset: %+v", r)
 	}
 	if r := dockit(t, "", nil, "upgrade", t.TempDir()); r.code != 1 || !strings.Contains(r.stderr, "not a DockIt dataset") {

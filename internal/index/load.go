@@ -104,7 +104,9 @@ func (l *loader) readErr(path string, err error) {
 // Load reads the whole dataset at root into a new index.  It does not stop
 // at the first problem: everything that can be read is loaded and every
 // problem found is reported.  The index is nil only if the dataset metadata
-// itself is missing, unreadable, or in a format this build does not serve.
+// itself is missing, unreadable, or in a format this build cannot read (see
+// store.CheckFormat).  Load never changes the dataset, so an older minor
+// format is loaded but left as it is.
 //
 // Load takes no lock, so it is safe to run on a dataset in use.
 func Load(root string) (*Index, *Report) {
@@ -120,8 +122,8 @@ func Load(root string) (*Index, *Report) {
 		l.readErr(metaPath, err)
 		return nil, l.report
 	}
-	if meta.Format != model.FormatCurrent {
-		l.errorf(metaPath, "format", "%v", &store.FormatError{Format: meta.Format})
+	if err := store.CheckFormat(meta.Version()); err != nil {
+		l.errorf(metaPath, "format", "%v", err)
 		return nil, l.report
 	}
 	l.fieldErrors(metaPath, meta.Validate())

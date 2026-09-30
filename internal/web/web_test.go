@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -36,7 +37,7 @@ func newFixture(t *testing.T) *fixture {
 	if err := store.Init(root, admin, &model.Auth{User: "admin", Password: auth.HashPassword("admin-password")}); err != nil {
 		t.Fatal(err)
 	}
-	svc, _, err := service.Open(root)
+	svc, _, err := service.Open(root, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -476,7 +477,7 @@ func TestVersion(t *testing.T) {
 	if p := f.browser().get("/login"); strings.Contains(p.body, "v1.2.3") {
 		t.Error("login page shows the version")
 	}
-	f.want(f.login("view").get("/"), 200, `title="DockIt v1.2.3, dataset format 2">v1.2.3 · format 2</span>`)
+	f.want(f.login("view").get("/"), 200, fmt.Sprintf(`title="DockIt v1.2.3, dataset format %[1]s">v1.2.3 · format %[1]s</span>`, model.FormatCurrent))
 }
 
 func TestNotFound(t *testing.T) {

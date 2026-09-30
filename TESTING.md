@@ -8,8 +8,16 @@ see [README.md](README.md).
 
 ```sh
 go test ./...
-go build -ldflags "-X main.version=$(git describe --tags --always)" ./cmd/dockit
+VERSION=$(git describe --tags --always --dirty)
+go run ./internal/buildcheck $VERSION
+go build -ldflags "-X main.version=$VERSION" ./cmd/dockit
 ```
+
+`buildcheck` fails a release build whose tag does not match the dataset format:
+release vX.Y.Z must write format X.Y (`model.FormatCurrent`). Any change to
+what may appear in the dataset bumps the minor, or the major if existing data
+has to be rewritten, and the release is tagged to match. Anything else is a
+patch release. See [DESIGN.md](DESIGN.md#dataset-metadata-and-versioning).
 
 Or install the latest release with
 `go install github.com/pdutton/DockIt/cmd/dockit@latest`.
@@ -55,4 +63,5 @@ The code follows the architecture in [DESIGN.md](DESIGN.md):
 | `internal/store`    | YAML files, atomic writes, lock file                   |
 | `internal/model`    | Records, enumerations, field checks                    |
 | `internal/upgrade`  | Dataset format migrations                              |
+| `internal/buildcheck` | Build step: a release's version matches its dataset format |
 | `internal/auth`, `internal/ratelimit` | Password and token hashing; failed-attempt limits |

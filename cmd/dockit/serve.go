@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/pdutton/DockIt/internal/api"
+	"github.com/pdutton/DockIt/internal/model"
 	"github.com/pdutton/DockIt/internal/service"
 	"github.com/pdutton/DockIt/internal/store"
 	"github.com/pdutton/DockIt/internal/web"
@@ -67,7 +68,13 @@ type serveConfig struct {
 
 func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- string) error {
 	dir, listen, certFile, keyFile, devUser := cfg.dir, cfg.listen, cfg.certFile, cfg.keyFile, cfg.devUser
-	svc, report, err := service.Open(dir)
+	svc, report, err := service.Open(dir, func(from, to model.Format) {
+		if from.Major < to.Major {
+			log.Info("dataset upgraded", "dataset", dir, "from", from.String(), "to", to.String())
+		} else {
+			log.Info("dataset format updated", "dataset", dir, "from", from.String(), "to", to.String())
+		}
+	})
 	var le *store.LockedError
 	switch {
 	case errors.As(err, &le):

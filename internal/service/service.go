@@ -17,6 +17,7 @@ import (
 	"github.com/pdutton/DockIt/internal/index"
 	"github.com/pdutton/DockIt/internal/model"
 	"github.com/pdutton/DockIt/internal/store"
+	"github.com/pdutton/DockIt/internal/upgrade"
 )
 
 // Errors returned by the service.  Interfaces map them to their own terms,
@@ -81,17 +82,47 @@ type Service struct {
 	now    func() time.Time
 }
 
-// Open locks the dataset at root and loads it.  It refuses a dataset with
-// errors; warnings are returned for the caller to log.
-func Open(root string) (*Service, *index.Report, error) {
-	st, err := store.Open(root)
+// Open locks the dataset at root, brings it to the current format, and loads
+// it.  It refuses a dataset with errors; warnings are returned for the caller
+// to log.
+//
+// A dataset in a newer format, or one too old to upgrade, is refused before
+// anything is touched.  One in an older major format is upgraded first, since
+// its records cannot be read until it is.  One in an older minor format is
+// loaded as it is, and its format is updated only if it loads cleanly.
+// formatChanged, if not nil, is called whenever the format on disk changes.
+func Open(root string, formatChanged func(from, to model.Format)) (*Service, *index.Report, error) {
+	st, err := store.OpenUpgradeable(root)
 	if err != nil {
 		return nil, nil, err
+	}
+	from := st.Meta().Version()
+	upgradeTo := func() error {
+		if err := upgrade.Migrate(st, model.FormatCurrent, upgrade.Migrations); err != nil {
+			st.Close()
+			return err
+		}
+		if formatChanged != nil {
+			formatChanged(from, model.FormatCurrent)
+		}
+		return nil
+	}
+
+	if from.Major < model.FormatCurrent.Major {
+		if err := upgradeTo(); err != nil {
+			return nil, nil, err
+		}
 	}
 	x, report := index.Load(root)
 	if x == nil || !report.OK() {
 		st.Close()
 		return nil, report, &OpenError{report}
+	}
+	if st.Meta().Version() != model.FormatCurrent {
+		if err := upgradeTo(); err != nil {
+			return nil, report, err
+		}
+		x.SetMeta(st.Meta())
 	}
 	return newService(st, x), report, nil
 }

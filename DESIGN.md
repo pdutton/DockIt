@@ -122,36 +122,56 @@ Individual files will be written in a manner that protects against corruption.
 `dockit.yaml`:
 
 ```yaml
-format: 2                       # dataset format version, an integer
+format: 2                       # dataset format, major number
+format_minor: 1                 # dataset format, minor number; 0 if absent
 dataset_id: 3f8c2a1e-...        # random UUID, identifies the dataset across copies
 created: 2026-09-26T21:54:43Z
 ```
 
-- `format` is incremented for any change to what may appear in the dataset, including a new optional
-  field or a new enumeration value.  An older install therefore never loads data it does not fully
-  understand, and so can never drop an unknown field when it rewrites a file.  For purely additive
-  changes, `dockit upgrade` only has to bump the number.
-- On startup, DockIt compares `format` to the range it supports:
-  - equal: run.
-  - older but upgradeable: refuse to serve and tell the operator to run `dockit upgrade`, which rewrites
-    the dataset to the current format in place.  It makes no backup: the operator copies the dataset
-    directory first (`cp -r`), which is simpler than DockIt doing it, especially in a container.
-    Migrations run one format at a time, and `dockit.yaml` records each step as it completes, so a
-    failed upgrade leaves the dataset in the last good format; the operator restores the copy.
-  - newer than supported: refuse to run.  This is what "portable between installs of sufficient version"
-    means in practice.
-- Upgrades are never performed implicitly by `serve`, so a dataset is never silently made unreadable to
-  an older install.
+- The dataset format is two numbers, major.minor, stored as two integers so YAML never reads `2.10` as
+  `2.1`.  `format_minor` is left out when it is 0, so a format 2.0 dataset reads and writes as it did
+  before minors existed.
+- The format changes for any change to what may appear in the dataset, so an older install never loads
+  data it does not fully understand, and so can never drop an unknown field when it rewrites a file:
+  - **major**: existing data must be rewritten before this build can read it, such as a new required
+    field.  A migration does the rewriting.
+  - **minor**: data is only added to, such as a new optional field or enumeration value.  Existing data
+    is read as it is; only the number changes.
+- Versions and formats stay in step: DockIt X.Y.Z writes dataset format X.Y.  The patch number Z is
+  for changes that do not touch the dataset, such as bug fixes and UI changes, so a feature that adds
+  nothing to the dataset is a patch release.  A release build fails if its tag and the format disagree
+  (`internal/buildcheck`, run by the Containerfile); untagged and dirty builds are not checked.
+- A pre-load step reads only `dockit.yaml` and compares its format to this build's:
+  - newer major, or the same major with a newer minor: refuse to run.  This is what "portable between
+    installs of sufficient version" means in practice.
+  - same: load.
+  - same major, older minor: load; if the load is clean, `serve` writes the current format to
+    `dockit.yaml`.  A dataset with errors is refused and left as it was.
+  - older major, from the oldest this build can upgrade: `serve` upgrades the dataset in place, then
+    loads it.  Migrations run one major at a time, and `dockit.yaml` records each step as it completes,
+    so a failed upgrade leaves the dataset in the last good format.  A migration accepts any minor of the
+    major it starts from.
+  - anything older: refuse to run.
+- Once a newer build has opened a dataset, older builds refuse it.  This is by design: the newer build
+  may have written fields or values the older one does not understand and would drop.  DockIt makes no
+  backup; the operator copies the dataset before starting a new version, and restores the copy to go
+  back.
+- `serve` logs any format change at startup, before "DockIt serving": `dataset format updated` for a new
+  minor, `dataset upgraded` for a new major, each with `from` and `to`.
+- `dockit upgrade` does the same upgrade offline, without serving.  `dockit check` never writes: it
+  checks a dataset in an older minor as it is and notes that it will be updated, and reports an older
+  major as an error, since it cannot read the records until they are upgraded.
 
 Format history:
 
 | Format | Change                                                                 |
 |--------|------------------------------------------------------------------------|
-| 1      | The first format (DockIt 1.0.5 and earlier).                           |
-| 2      | Task `type`, required.  The upgrade gives every existing task `task`.  |
+| 1.0    | The first format (DockIt 1.0.5 and earlier).                           |
+| 2.0    | Task `type`, required.  The upgrade gives every existing task `task`.  |
 |        | Task `found_in` and `resolved_in`, optional.                           |
 |        | Task `urls`, optional, with the task URL type `pr`.                    |
 |        | Substate `duplicate` of `complete`.                                    |
+| 2.1    | `format_minor` in `dockit.yaml`, optional.                             |
 
 ### Record formats
 
@@ -507,10 +527,10 @@ Enforced in the service layer, identically for both interfaces:
 
 | Command          | Purpose                                                      |
 |------------------|--------------------------------------------------------------|
-| `dockit serve`   | Take the lock, load the dataset, serve Web and REST          |
+| `dockit serve`   | Take the lock, upgrade and load the dataset, serve Web and REST |
 | `dockit init`    | Create a new dataset and its first admin; empty dir only     |
 | `dockit check`   | Validate a dataset offline                                   |
-| `dockit upgrade` | Back up, then migrate a dataset to the current format        |
+| `dockit upgrade` | Migrate a dataset to the current format, without serving it  |
 | `dockit unlock`  | Remove a stale lock file after the operator confirms         |
 | `dockit version` | Print the build version and supported dataset formats        |
 

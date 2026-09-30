@@ -34,7 +34,7 @@ func newFixture(t *testing.T, opts Options) *fixture {
 	if err := store.Init(root, admin, &model.Auth{User: "admin", Password: auth.HashPassword("admin-password")}); err != nil {
 		t.Fatal(err)
 	}
-	svc, _, err := service.Open(root)
+	svc, _, err := service.Open(root, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

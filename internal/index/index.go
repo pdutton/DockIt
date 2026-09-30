@@ -39,6 +39,9 @@ func New(meta model.Meta) *Index {
 // Meta returns the dataset metadata.
 func (x *Index) Meta() model.Meta { return x.meta }
 
+// SetMeta records new dataset metadata.
+func (x *Index) SetMeta(meta model.Meta) { x.meta = meta }
+
 // Project returns project pid, or nil.
 func (x *Index) Project(pid string) *model.Project {
 	if p := x.projects[pid]; p != nil {

@@ -15,6 +15,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
+# A release's major.minor must match the dataset format it writes.
+RUN go run ./internal/buildcheck "${VERSION}"
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/dockit ./cmd/dockit
 # The dataset mount point, owned by the distroless nonroot user, so a new named
