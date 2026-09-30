@@ -59,7 +59,7 @@
   {{range .}}
   <li{{if and .Other (eq .Other.State "complete")}} class="done"{{end}}>
     <span class="relation">{{with .Relation.Heading}}{{.}}{{else}}<span class="unknown" title="Unknown link type; this DockIt does not recognize it">{{.Relation.ID}} ⚠</span>{{end}}</span>
-    <a href="/tasks/{{.Link.Task}}">{{.Link.Task}}{{with .Other}} {{.Title}}{{end}}</a>
+    <a href="/tasks/{{.Link.Task}}">{{.Link.Task}}{{with .Other}}: {{.Title}}{{end}}</a>
     {{with .Other}}<span class="pill state-{{.State}}">{{taskState .State}}</span>{{end}}
     {{if and (canEdit $me) .Relation.Heading}}
     <form method="post" action="/tasks/{{$t.ID}}/links/{{.Relation.ID}}/{{.Link.Task}}/delete" class="inline">
