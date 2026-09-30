@@ -288,6 +288,62 @@ func (a *API) deleteComment(w http.ResponseWriter, r *http.Request, actor string
 	return nil
 }
 
+// Links.
+
+func (a *API) listLinks(w http.ResponseWriter, r *http.Request, actor string) error {
+	ls, err := a.svc.Links(actor, r.PathValue("tid"))
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, ls)
+	return nil
+}
+
+func (a *API) getLink(w http.ResponseWriter, r *http.Request, actor string) error {
+	l, err := a.svc.Link(actor, r.PathValue("tid"), r.PathValue("type"), r.PathValue("other"))
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, l)
+	return nil
+}
+
+// addLink answers 201 with the new link, or 200 with the existing one if
+// the tasks were already linked that way.
+func (a *API) addLink(w http.ResponseWriter, r *http.Request, actor string) error {
+	var in struct {
+		Type string `json:"type"`
+		Task string `json:"task"`
+	}
+	if err := readJSON(r, &in); err != nil {
+		return err
+	}
+	tid := r.PathValue("tid")
+	l, created, err := a.svc.AddLink(actor, tid, in.Type, in.Task)
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Location", linkPath(tid, l))
+	status := http.StatusOK
+	if created {
+		status = http.StatusCreated
+	}
+	writeJSON(w, status, l)
+	return nil
+}
+
+func (a *API) removeLink(w http.ResponseWriter, r *http.Request, actor string) error {
+	if err := a.svc.RemoveLink(actor, r.PathValue("tid"), r.PathValue("type"), r.PathValue("other")); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func linkPath(tid string, l *service.TaskLink) string {
+	return Prefix + "/tasks/" + tid + "/links/" + l.Relation + "/" + l.Task
+}
+
 // Users.
 
 func (a *API) listUsers(w http.ResponseWriter, r *http.Request, actor string) error {
@@ -456,6 +512,26 @@ func (a *API) getEnums(w http.ResponseWriter, r *http.Request, actor string) err
 		"url_types":      enumValues(model.URLTypes),
 		"task_url_types": enumValues(model.TaskURLTypes),
 		"roles":          enumValues(model.Roles),
+		"link_types":     enumValues(model.LinkTypes),
+		"link_relations": linkRelations(),
 	})
 	return nil
+}
+
+// linkRelation describes a link type as seen from one of its tasks: the
+// type ids that /tasks/{tid}/links sends and accepts.
+type linkRelation struct {
+	ID       string `json:"id"`
+	Display  string `json:"display"` // a heading, such as "Blocked by"
+	Phrase   string `json:"phrase"`  // reads "<task> <phrase> <other task>"
+	LinkType string `json:"link_type"`
+	Reverse  bool   `json:"reverse"` // the task is the stored link's b
+}
+
+func linkRelations() []linkRelation {
+	var out []linkRelation
+	for _, r := range model.Relations {
+		out = append(out, linkRelation{r.ID, r.Heading, r.Phrase, r.Type, r.Reverse})
+	}
+	return out
 }

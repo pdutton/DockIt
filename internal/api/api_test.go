@@ -390,6 +390,66 @@ func TestComments(t *testing.T) {
 	}
 }
 
+func TestLinks(t *testing.T) {
+	f := newFixture(t, Options{})
+	for range 2 {
+		f.want(f.do("POST", "/projects/WEB/tasks", "mem", `{"title":"T"}`), 201, "")
+	}
+	// No links is an empty list, not null.
+	if r := f.do("GET", "/tasks/WEB-1/links", "view", nil); r.status != 200 || strings.TrimSpace(string(r.body)) != "[]" {
+		t.Errorf("empty list %d %s", r.status, r.body)
+	}
+
+	r := f.do("POST", "/tasks/WEB-1/links", "mem", `{"type":"blocked_by","task":"WEB-2"}`)
+	f.want(r, 201, "")
+	if r.obj()["type"] != "blocked_by" || r.obj()["task"] != "WEB-2" || r.obj()["creator"] != "mem" {
+		t.Errorf("created %s", r.body)
+	}
+	// The Location header can be followed, by any user.
+	loc, _ := strings.CutPrefix(r.header.Get("Location"), Prefix)
+	if loc != "/tasks/WEB-1/links/blocked_by/WEB-2" {
+		t.Errorf("Location = %s", r.header.Get("Location"))
+	}
+	f.want(f.do("GET", loc, "view", nil), 200, "")
+	// Adding it again, from the other end, finds the existing link.
+	r = f.do("POST", "/tasks/WEB-2/links", "mem", `{"type":"blocks","task":"WEB-1"}`)
+	f.want(r, 200, "")
+	if r.header.Get("Location") != Prefix+"/tasks/WEB-2/links/blocks/WEB-1" {
+		t.Errorf("Location = %s", r.header.Get("Location"))
+	}
+
+	r = f.do("GET", "/tasks/WEB-2/links", "view", nil)
+	f.want(r, 200, "")
+	if ls, _ := r.json().([]any); len(ls) != 1 || ls[0].(map[string]any)["type"] != "blocks" ||
+		ls[0].(map[string]any)["task"] != "WEB-1" {
+		t.Errorf("list %s", r.body)
+	}
+
+	f.want(f.do("POST", "/tasks/WEB-1/links", "view", `{"type":"related","task":"WEB-2"}`), 403, "forbidden")
+	r = f.do("POST", "/tasks/WEB-1/links", "mem", `{"type":"related","task":"WEB-7"}`)
+	if f.want(r, 422, "invalid"); r.errField() != "task" {
+		t.Errorf("field %s", r.errField())
+	}
+	r = f.do("POST", "/tasks/WEB-1/links", "mem", `{"type":"depends","task":"WEB-2"}`)
+	if f.want(r, 422, "invalid"); r.errField() != "type" {
+		t.Errorf("field %s", r.errField())
+	}
+	f.want(f.do("POST", "/tasks/WEB-1/links", "mem", `{"type":"related","task":"WEB-2","note":"x"}`), 400, "bad_request")
+	f.want(f.do("POST", "/tasks/WEB-9/links", "mem", `{"type":"related","task":"WEB-2"}`), 404, "not_found")
+	f.want(f.do("GET", "/tasks/WEB-9/links", "view", nil), 404, "not_found")
+	f.want(f.do("GET", "/tasks/WEB-1/links/blocks/WEB-2", "view", nil), 404, "not_found")
+
+	f.want(f.do("DELETE", "/tasks/WEB-2/links/blocks/WEB-1", "view", nil), 403, "forbidden")
+	f.want(f.do("DELETE", "/tasks/WEB-2/links/blocks/WEB-1", "mem", nil), 204, "")
+	f.want(f.do("DELETE", "/tasks/WEB-2/links/blocks/WEB-1", "mem", nil), 404, "not_found")
+	f.want(f.do("DELETE", "/tasks/WEB-2/links/nonsense/WEB-1", "mem", nil), 404, "not_found")
+
+	// Links never change the task.
+	if r := f.do("GET", "/tasks/WEB-1", "view", nil); r.header.Get("ETag") != `"1"` {
+		t.Errorf("task ETag = %s", r.header.Get("ETag"))
+	}
+}
+
 func TestUsers(t *testing.T) {
 	f := newFixture(t, Options{})
 	body := `{"id":"newbie","name":"New Bie","email":"new@example.com","role":"member"}`
@@ -474,6 +534,15 @@ func TestEnums(t *testing.T) {
 		len(types) != 6 || types[0].(map[string]any)["display"] != "Bug Fix" ||
 		len(urlTypes) != 1 || urlTypes[0].(map[string]any)["id"] != "pr" {
 		t.Errorf("enums = %s", r.body)
+	}
+	linkTypes, _ := r.obj()["link_types"].([]any)
+	rels, _ := r.obj()["link_relations"].([]any)
+	if len(linkTypes) != 5 || len(rels) != 8 {
+		t.Fatalf("link enums = %s", r.body)
+	}
+	if b := rels[1].(map[string]any); b["id"] != "blocked_by" || b["display"] != "Blocked by" ||
+		b["phrase"] != "is blocked by" || b["link_type"] != "blocks" || b["reverse"] != true {
+		t.Errorf("link relation = %v", b)
 	}
 }
 

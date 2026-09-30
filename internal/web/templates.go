@@ -62,6 +62,7 @@ var funcs = template.FuncMap{
 	"urlTypes":      model.URLTypes.Values,
 	"taskURLTypes":  model.TaskURLTypes.Values,
 	"roles":         model.Roles.Values,
+	"linkRelations": func() []model.Relation { return model.Relations },
 	"allSubstates":  allSubstates,
 	"priorities":    func() []int { return []int{1, 2, 3, 4, 5} },
 	"isAdmin":       func(u *model.User) bool { return u != nil && u.Role == model.RoleAdmin },

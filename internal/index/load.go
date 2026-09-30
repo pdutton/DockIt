@@ -133,6 +133,7 @@ func Load(root string) (*Index, *Report) {
 	l.loadUsers()
 	l.loadAuth()
 	l.loadProjects()
+	l.loadLinks()
 	l.checkReferences()
 	return l.x, l.report
 }
@@ -169,6 +170,7 @@ func (l *loader) unexpected(path string, e fs.DirEntry) {
 func (l *loader) checkRoot() {
 	known := map[string]bool{
 		store.MetaFile:    false,
+		store.LinksFile:   false,
 		store.LockFile:    false,
 		store.ProjectsDir: true,
 		store.UsersDir:    true,
@@ -349,4 +351,39 @@ func (l *loader) checkUserRef(path, field, uid string) {
 	if model.ValidUserID(uid) && l.x.users[uid] == nil {
 		l.errorf(path, field, "user %q does not exist", uid)
 	}
+}
+
+// loadLinks reads links.yaml.  It runs after the users and tasks are loaded,
+// since links refer to them.  Links span files, but tasks and users are never
+// deleted, so they still resolve in any consistent copy.
+func (l *loader) loadLinks() {
+	path := filepath.Join(l.root, store.LinksFile)
+	links, err := store.ReadLinks(l.root)
+	if err != nil {
+		l.readErr(path, err)
+		return
+	}
+	var kept []model.Link
+	for i, k := range links {
+		field := fmt.Sprintf("[%d]", i)
+		for _, e := range k.Validate() {
+			l.report.Problems = append(l.report.Problems,
+				Problem{Path: l.rel(path), Field: field + "." + e.Field, Message: e.Message, Warning: e.Warning})
+		}
+		for _, end := range []struct{ field, tid string }{{"a", k.A}, {"b", k.B}} {
+			// A malformed ID has already been reported by Validate.
+			if _, _, err := model.ParseTaskID(end.tid); err == nil && l.x.tasks[end.tid] == nil {
+				l.errorf(path, field+"."+end.field, "task %q does not exist", end.tid)
+			}
+		}
+		l.checkUserRef(path, field+".creator", k.Creator)
+
+		k = k.Canonical()
+		if j := slices.IndexFunc(kept, k.Same); j >= 0 {
+			l.warnf(path, field, "the same link as an earlier one; the copy is dropped when links next change")
+			continue
+		}
+		kept = append(kept, k)
+	}
+	l.x.SetLinks(kept)
 }

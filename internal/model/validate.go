@@ -314,6 +314,26 @@ func (t *Task) Validate() []*FieldError {
 	return p
 }
 
+// Validate checks a link's own fields.  Whether its tasks and creator exist
+// is the caller's concern.
+func (l *Link) Validate() []*FieldError {
+	var p problems
+	for _, end := range []struct{ field, id string }{{"a", l.A}, {"b", l.B}} {
+		if _, _, err := ParseTaskID(end.id); err != nil {
+			p.add(fieldErr(end.field, "%q is not a valid task ID", end.id))
+		}
+	}
+	if l.A == l.B {
+		p.add(fieldErr("b", "a task cannot be linked to itself"))
+	}
+	p.add(
+		checkEnum("type", LinkTypes, l.Type),
+		checkUserID("creator", l.Creator),
+		checkTime("created", l.Created),
+	)
+	return p
+}
+
 // Validate checks a user's secrets.
 func (a *Auth) Validate() []*FieldError {
 	var p problems

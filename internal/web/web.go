@@ -130,6 +130,8 @@ func (w *Web) routes() {
 	h("POST /tasks/{tid}/comments", w.commentAdd)
 	h("POST /tasks/{tid}/comments/{cid}", w.commentEdit)
 	h("POST /tasks/{tid}/comments/{cid}/delete", w.commentDelete)
+	h("POST /tasks/{tid}/links", w.linkAdd)
+	h("POST /tasks/{tid}/links/{type}/{other}/delete", w.linkRemove)
 
 	h("GET /users", w.userList)
 	h("GET /users/new", w.userNew)

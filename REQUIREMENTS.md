@@ -32,7 +32,6 @@ Other ideas that are explicitly out of scope for version 1.  This is not an exha
 
 - Due dates
 - Tags
-- Dependencies
 - Attachments
 - Notifications
 
@@ -235,3 +234,34 @@ time, but assume existing entries will not be removed.
 The initial list:
 
 - Pull Requests
+
+### Links
+
+Two tasks may be linked to show how they relate.  The tasks may be in different projects, but
+must be in the same dataset: links never refer to other tracking software.  Both tasks must exist.
+
+Each link has a type, chosen from a static list built into DockIt.  The list may expand over time,
+but assume existing entries will not be removed.  Some types have a direction and read differently
+from each end.
+
+The initial list:
+
+- **Related:** the tasks are related.  No direction: "ACME-6 is related to ACME-7".
+- **Conflicts:** the tasks, or their fixes, conflict, so a choice must be made between them.  No
+  direction: "ACME-6 conflicts with ACME-7".
+- **Depends:** one task cannot be completed or deployed without the other, though the two can
+  likely be worked on at the same time.  Weaker than Blocks.  "ACME-6 depends on ACME-7" and
+  "ACME-7 is a dependency of ACME-6".
+- **Blocks:** the blocking task must be resolved before the blocked task can be worked on with
+  success.  "ACME-7 blocks ACME-6" and "ACME-6 is blocked by ACME-7".
+- **Duplicates:** one task duplicates the other, which says what a task in the Complete/Duplicate
+  substate duplicates.  "ACME-8 duplicates ACME-6" and "ACME-6 is duplicated by ACME-8".
+
+The same two tasks may have more than one link, of different types.
+
+Links are informational only: they place no limits on state transitions.
+
+Links can be added and removed by anyone who can edit tasks.  They cannot be edited.  Adding or
+removing a link does not modify either task.
+
+Both tasks show the link, each worded from its own side.

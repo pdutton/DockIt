@@ -102,8 +102,8 @@ records. A release that changes only the last number leaves the dataset alone.
 
 ## Your data
 
-A dataset is a directory of YAML files, one per project, task and user, so any
-tool can read it. See [DESIGN.md](DESIGN.md#dataset) for the layout and formats.
+A dataset is a directory of YAML files, one per project, task and user, plus
+`links.yaml` for the links between tasks, so any tool can read it. See [DESIGN.md](DESIGN.md#dataset) for the layout and formats.
 
 - **Back up** by copying the dataset directory. Every file is written
   atomically, so a copy taken while DockIt runs holds only complete files. Leave
