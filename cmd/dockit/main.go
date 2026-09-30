@@ -38,8 +38,8 @@ type command struct {
 var commands = []command{
 	{"init", "Create a new dataset and its first admin; empty directory only", runInit},
 	{"check", "Validate a dataset offline", runCheck},
-	{"serve", "Take the lock, load the dataset, and serve the Web UI and REST API", runServe},
-	{"upgrade", "Migrate a dataset to the current format, in place", runUpgrade},
+	{"serve", "Take the lock, upgrade and load the dataset, and serve the Web UI and REST API", runServe},
+	{"upgrade", "Migrate a dataset to the current format, in place, without serving it", runUpgrade},
 	{"unlock", "Remove a stale lock file after confirming no instance is running", runUnlock},
 	{"version", "Print the build version and supported dataset formats", runVersion},
 }
@@ -233,10 +233,10 @@ func runVersion(e *env, args []string) error {
 		return err
 	}
 	fmt.Fprintf(e.stdout, "dockit %s\n", buildVersion())
-	if model.FormatMin == model.FormatCurrent {
-		fmt.Fprintf(e.stdout, "dataset format %d\n", model.FormatCurrent)
+	if model.FormatMin == model.FormatCurrent.Major {
+		fmt.Fprintf(e.stdout, "dataset format %s\n", model.FormatCurrent)
 	} else {
-		fmt.Fprintf(e.stdout, "dataset format %d (upgrades from %d)\n", model.FormatCurrent, model.FormatMin)
+		fmt.Fprintf(e.stdout, "dataset format %s (upgrades from %d)\n", model.FormatCurrent, model.FormatMin)
 	}
 	return nil
 }

@@ -150,3 +150,29 @@ func TestCheckEmail(t *testing.T) {
 		}
 	}
 }
+
+func TestFormat(t *testing.T) {
+	f := Format{Major: 2, Minor: 10}
+	if f.String() != "2.10" {
+		t.Errorf("String() = %q", f.String())
+	}
+	for _, tc := range []struct {
+		g    Format
+		want int
+	}{
+		{Format{2, 10}, 0},
+		{Format{2, 9}, 1}, // 2.10 is newer than 2.9
+		{Format{2, 11}, -1},
+		{Format{1, 99}, 1},
+		{Format{3, 0}, -1},
+	} {
+		if got := f.Compare(tc.g); got != tc.want {
+			t.Errorf("%s.Compare(%s) = %d, want %d", f, tc.g, got, tc.want)
+		}
+	}
+	var m Meta
+	m.SetVersion(f)
+	if m.Format != 2 || m.FormatMinor != 10 || m.Version() != f {
+		t.Errorf("meta %+v", m)
+	}
+}

@@ -29,27 +29,37 @@ const (
 // ErrNoDataset is returned when a directory has no dockit.yaml.
 var ErrNoDataset = errors.New("not a DockIt dataset: " + MetaFile + " not found")
 
-// FormatError is returned when a dataset's format is not the one this build
-// serves.
+// FormatError is returned when a dataset's format is not one this build can
+// read as it is.
 type FormatError struct {
-	Format int
+	Format model.Format
 }
 
-// Upgradeable reports whether `dockit upgrade` can bring the dataset to the
-// current format.
+// Upgradeable reports whether this build can upgrade the dataset: its major
+// format is older than the current one, but not older than FormatMin.
 func (e *FormatError) Upgradeable() bool {
-	return e.Format >= model.FormatMin && e.Format < model.FormatCurrent
+	return e.Format.Major >= model.FormatMin && e.Format.Major < model.FormatCurrent.Major
 }
 
 func (e *FormatError) Error() string {
 	switch {
 	case e.Upgradeable():
-		return fmt.Sprintf("dataset format %d is older than %d; run `dockit upgrade`", e.Format, model.FormatCurrent)
-	case e.Format > model.FormatCurrent:
-		return fmt.Sprintf("dataset format %d is newer than this build supports (%d); use a newer DockIt", e.Format, model.FormatCurrent)
+		return fmt.Sprintf("dataset format %s is older than %s; `dockit serve` or `dockit upgrade` will upgrade it", e.Format, model.FormatCurrent)
+	case e.Format.Compare(model.FormatCurrent) > 0:
+		return fmt.Sprintf("dataset format %s is newer than this build supports (%s); use a newer DockIt", e.Format, model.FormatCurrent)
 	default:
-		return fmt.Sprintf("dataset format %d is not supported", e.Format)
+		return fmt.Sprintf("dataset format %s is too old for this build to upgrade (oldest supported: %d)", e.Format, model.FormatMin)
 	}
+}
+
+// CheckFormat returns nil if this build can read a dataset in format f as it
+// is: the same major format as the current one, and the same or an older
+// minor.  Otherwise it returns a *FormatError.
+func CheckFormat(f model.Format) error {
+	if f.Major != model.FormatCurrent.Major || f.Minor > model.FormatCurrent.Minor {
+		return &FormatError{f}
+	}
+	return nil
 }
 
 // Store is an open, locked dataset.
@@ -60,14 +70,23 @@ type Store struct {
 }
 
 // Open locks the dataset at root for writing.  The dataset must exist and be
-// in the current format.  Leftover temporary files are removed, which is safe
-// because the lock is held.
+// in a format this build can read (see CheckFormat); Open does not change its
+// format.  Leftover temporary files are removed, which is safe because the
+// lock is held.
 func Open(root string) (*Store, error) {
-	return open(root, func(format int) error {
-		if format != model.FormatCurrent {
-			return &FormatError{format}
+	return open(root, CheckFormat)
+}
+
+// OpenUpgradeable is like Open, but it also accepts a dataset in an older
+// major format that this build can upgrade.  The caller must upgrade it
+// before reading any records.
+func OpenUpgradeable(root string) (*Store, error) {
+	return open(root, func(f model.Format) error {
+		err := CheckFormat(f)
+		if fe, ok := err.(*FormatError); ok && fe.Upgradeable() {
+			return nil
 		}
-		return nil
+		return err
 	})
 }
 
@@ -76,15 +95,15 @@ func Open(root string) (*Store, error) {
 // written through the returned store unless they are in a format this build
 // understands.
 func OpenAnyFormat(root string) (*Store, error) {
-	return open(root, func(int) error { return nil })
+	return open(root, func(model.Format) error { return nil })
 }
 
-func open(root string, checkFormat func(int) error) (*Store, error) {
+func open(root string, checkFormat func(model.Format) error) (*Store, error) {
 	meta, err := ReadMeta(root)
 	if err != nil {
 		return nil, err
 	}
-	if err := checkFormat(meta.Format); err != nil {
+	if err := checkFormat(meta.Version()); err != nil {
 		return nil, err
 	}
 	lock, err := AcquireLock(root)

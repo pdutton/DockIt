@@ -1,19 +1,42 @@
 package model
 
 import (
+	"cmp"
+	"fmt"
 	"slices"
 	"time"
 
 	"go.yaml.in/yaml/v3"
 )
 
-// Dataset format versions this build understands.  FormatCurrent is written
-// by init and upgrade; anything from FormatMin up to FormatCurrent can be
-// upgraded, and only FormatCurrent is served.
-const (
-	FormatMin     = 1
-	FormatCurrent = 2
-)
+// A Format is a dataset format version, major.minor.  The major number
+// changes when existing data must be rewritten to be read, and the minor
+// number when data is only added to, such as a new optional field or
+// enumeration value.  A release's version always starts with the dataset
+// format it writes: DockIt 2.1.x writes format 2.1.
+type Format struct {
+	Major, Minor int
+}
+
+// FormatCurrent is the dataset format this build writes.  It reads any
+// earlier minor of the same major, updating the dataset's format to this one
+// when it opens it for writing, and upgrades any earlier major from
+// FormatMin.
+var FormatCurrent = Format{Major: 2, Minor: 1}
+
+// FormatMin is the oldest major format this build can upgrade.
+const FormatMin = 1
+
+func (f Format) String() string { return fmt.Sprintf("%d.%d", f.Major, f.Minor) }
+
+// Compare returns -1, 0 or +1 as f is older than, the same as, or newer
+// than g.
+func (f Format) Compare(g Format) int {
+	if c := cmp.Compare(f.Major, g.Major); c != 0 {
+		return c
+	}
+	return cmp.Compare(f.Minor, g.Minor)
+}
 
 // DefaultPriority is the priority of a task when none is given.
 const DefaultPriority = 3
@@ -26,10 +49,17 @@ const DefaultTaskType = TypeTask
 
 // Meta is the dataset metadata in dockit.yaml.
 type Meta struct {
-	Format    int       `yaml:"format" json:"format"`
-	DatasetID string    `yaml:"dataset_id" json:"dataset_id"`
-	Created   time.Time `yaml:"created" json:"created"`
+	Format      int       `yaml:"format" json:"format"`                                 // major
+	FormatMinor int       `yaml:"format_minor,omitempty" json:"format_minor,omitempty"` // 0 if absent, as in format 2.0 and earlier
+	DatasetID   string    `yaml:"dataset_id" json:"dataset_id"`
+	Created     time.Time `yaml:"created" json:"created"`
 }
+
+// Version returns the dataset's format.
+func (m Meta) Version() Format { return Format{Major: m.Format, Minor: m.FormatMinor} }
+
+// SetVersion sets the dataset's format.
+func (m *Meta) SetVersion(f Format) { m.Format, m.FormatMinor = f.Major, f.Minor }
 
 // Project is a project record, projects/<id>/<id>.yaml.
 type Project struct {

@@ -46,11 +46,9 @@ func Init(root string, admin *model.User, adminAuth *model.Auth) (err error) {
 	if err := s.WriteAuth(adminAuth); err != nil {
 		return err
 	}
-	return s.WriteMeta(model.Meta{
-		Format:    model.FormatCurrent,
-		DatasetID: newUUID(),
-		Created:   model.Now(),
-	})
+	meta := model.Meta{DatasetID: newUUID(), Created: model.Now()}
+	meta.SetVersion(model.FormatCurrent)
+	return s.WriteMeta(meta)
 }
 
 // checkEmpty succeeds if dir does not exist or is an empty directory.

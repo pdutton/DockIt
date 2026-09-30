@@ -54,10 +54,10 @@ In a container, pass them as `-e` settings. The image sets two of them:
 | Command          | Purpose                                                          |
 |------------------|------------------------------------------------------------------|
 | `dockit init`    | Create a dataset and its first admin user in a missing or empty directory. Prints a one-time password, which must be changed at first login. |
-| `dockit serve`   | Lock the dataset and serve the web interface at `/` and the REST API under `/api/v1/`. Only one instance may run against a dataset at a time. |
+| `dockit serve`   | Lock the dataset, upgrade it if it is from an older DockIt (see [Upgrading](#upgrading)), and serve the web interface at `/` and the REST API under `/api/v1/`. Only one instance may run against a dataset at a time. |
 | `dockit check`   | Validate a dataset: file names match IDs, required fields are present, and references between records resolve. Safe to run while DockIt is running. `-q` prints errors only. Exits 1 if there are errors. |
 | `dockit unlock`  | Remove a stale lock left by an instance that is no longer running. Shows who holds the lock and asks first; `-yes` skips the question. |
-| `dockit upgrade` | Migrate a dataset, in place, to the format this DockIt uses. It makes no backup, so copy the dataset first. `serve` never upgrades on its own; it asks you to run this. |
+| `dockit upgrade` | Upgrade a dataset, in place, to the format this DockIt uses, without serving it. `serve` does the same when it starts. It makes no backup, so copy the dataset first. |
 | `dockit version` | Print the build version and the dataset format it supports.      |
 
 Run `dockit <command> -h` for a command's flags.
@@ -74,7 +74,14 @@ podman run --rm -it --userns=keep-id:uid=65532,gid=65532 -v $DOCKIT_DIR:/data:Z 
 
 ## Upgrading
 
-`upgrade` rewrites the dataset in place and makes no backup, so copy the
+A new version of DockIt upgrades the dataset when `serve` starts, in place,
+and logs the change (`podman logs dockit`):
+
+```
+level=INFO msg="dataset format updated" dataset=/data from=2.0 to=2.1
+```
+
+It makes no backup, and older versions refuse an upgraded dataset, so copy the
 dataset directory first, with DockIt stopped:
 
 ```sh
@@ -84,6 +91,12 @@ cp -r $DOCKIT_DIR $DOCKIT_DIR.before-upgrade
 Run `check` after upgrading, and remove the copy once you are happy with the
 result. If the upgrade fails, or you go back to the older image, restore the
 copy.
+
+The first two numbers of a DockIt version are the dataset format it writes:
+DockIt 2.1.x writes format 2.1. A new minor format only adds to the dataset,
+so the upgrade just records the new number. A new major format rewrites
+records. A release that changes only the last number leaves the dataset alone.
+`dockit upgrade` does the same upgrade without starting DockIt.
 
 ## Your data
 
@@ -125,11 +138,12 @@ podman volume create dockit-restored
 podman volume import dockit-restored dockit-backup.tar
 ```
 
-To upgrade, stop DockIt, back up the volume as above, then upgrade and check it:
+To upgrade, stop DockIt, back up the volume as above, then start the new image
+and check the result:
 
 ```sh
 podman stop dockit
-podman run --rm -v dockit-data:/data dockit upgrade
+podman run --rm -d --name dockit --stop-timeout 15 -p 8080:8080 -v dockit-data:/data dockit
 podman run --rm -v dockit-data:/data dockit check
 ```
 

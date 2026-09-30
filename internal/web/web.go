@@ -257,8 +257,8 @@ type view struct {
 	Submission string // the submission key for this page's forms
 	Path       string
 	Data       any
-	Version    string // the build version
-	Format     int    // the dataset format; serve only opens the current one
+	Version    string       // the build version
+	Format     model.Format // the dataset format; serve brings every dataset to the current one
 }
 
 // render executes a page into a buffer first, so a template error becomes a

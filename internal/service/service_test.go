@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -34,7 +35,7 @@ func newFixture(t *testing.T) *fixture {
 	if err := store.Init(root, admin, &model.Auth{User: "admin", Password: auth.HashPassword("admin-password")}); err != nil {
 		t.Fatal(err)
 	}
-	s, report, err := Open(root)
+	s, report, err := Open(root, nil)
 	if err != nil {
 		t.Fatalf("Open: %v %v", err, report)
 	}
@@ -119,7 +120,7 @@ func TestOpenRefusesBrokenDataset(t *testing.T) {
 		State: model.TaskNew, Priority: 3, Created: t0, Modified: t0}))
 	st.Close()
 
-	_, report, err := Open(f.root)
+	_, report, err := Open(f.root, nil)
 	var oe *OpenError
 	if !errors.As(err, &oe) || report.OK() {
 		t.Fatalf("Open = %v", err)
@@ -433,6 +434,146 @@ func TestTaskURLs(t *testing.T) {
 	}
 }
 
+// setFormat rewrites the dataset's format, as an older or newer build would
+// have left it.
+func (f *fixture) setFormat(v model.Format) {
+	f.t.Helper()
+	st, err := store.OpenAnyFormat(f.root)
+	f.ok(err)
+	defer st.Close()
+	meta := st.Meta()
+	meta.SetVersion(v)
+	f.ok(st.WriteMeta(meta))
+}
+
+func (f *fixture) format() model.Format {
+	f.t.Helper()
+	meta, err := store.ReadMeta(f.root)
+	f.ok(err)
+	return meta.Version()
+}
+
+// formatChanges records the calls Open makes to its formatChanged callback.
+type formatChanges []string
+
+func (c *formatChanges) add(from, to model.Format) { *c = append(*c, from.String()+"->"+to.String()) }
+
+func olderMinor(t *testing.T) model.Format {
+	t.Helper()
+	if model.FormatCurrent.Minor == 0 {
+		t.Skip("the current format has no older minor")
+	}
+	return model.Format{Major: model.FormatCurrent.Major, Minor: model.FormatCurrent.Minor - 1}
+}
+
+func TestOpenUpdatesOlderMinor(t *testing.T) {
+	f := newFixture(t)
+	f.s.Close()
+	older := olderMinor(t)
+	f.setFormat(older)
+
+	var changes formatChanges
+	s, _, err := Open(f.root, changes.add)
+	f.ok(err)
+	defer s.Close()
+	if want := older.String() + "->" + model.FormatCurrent.String(); len(changes) != 1 || changes[0] != want {
+		t.Errorf("changes = %v, want [%s]", changes, want)
+	}
+	if got := f.format(); got != model.FormatCurrent {
+		t.Errorf("format on disk = %s", got)
+	}
+	if got := s.x.Meta().Version(); got != model.FormatCurrent {
+		t.Errorf("format in the index = %s", got)
+	}
+
+	// Already current: nothing to report.
+	s.Close()
+	changes = nil
+	s, _, err = Open(f.root, changes.add)
+	f.ok(err)
+	s.Close()
+	if len(changes) != 0 {
+		t.Errorf("changes = %v on a current dataset", changes)
+	}
+}
+
+func TestOpenKeepsOlderMinorOfBrokenDataset(t *testing.T) {
+	f := newFixture(t)
+	f.s.Close()
+	st, err := store.Open(f.root)
+	f.ok(err)
+	f.ok(st.WriteTask(&model.Task{ID: "WEB-1", Version: 1, Title: "x", Type: model.TypeTask, Creator: "ghost", Owner: "ghost",
+		State: model.TaskNew, Priority: 3, Created: t0, Modified: t0}))
+	st.Close()
+	older := olderMinor(t)
+	f.setFormat(older)
+
+	var changes formatChanges
+	var oe *OpenError
+	if _, _, err := Open(f.root, changes.add); !errors.As(err, &oe) {
+		t.Fatalf("Open = %v", err)
+	}
+	if got := f.format(); got != older || len(changes) != 0 {
+		t.Errorf("format %s, changes %v; a refused dataset must be left as it was", got, changes)
+	}
+}
+
+func TestOpenUpgradesOlderMajor(t *testing.T) {
+	f := newFixture(t)
+	_, err := f.s.CreateTask("mem", "WEB", NewTask{Title: "Old"})
+	f.ok(err)
+	f.s.Close()
+
+	// Make it a format 1 dataset: tasks had no type.
+	path := store.TaskPath(f.root, "WEB-1")
+	b, err := os.ReadFile(path)
+	f.ok(err)
+	old := strings.Replace(string(b), "\ntype: task\n", "\n", 1)
+	if old == string(b) {
+		t.Fatalf("no type line to remove:\n%s", b)
+	}
+	f.ok(os.WriteFile(path, []byte(old), 0o644))
+	f.setFormat(model.Format{Major: 1})
+
+	var changes formatChanges
+	s, _, err := Open(f.root, changes.add)
+	f.ok(err)
+	defer s.Close()
+	if want := "1.0->" + model.FormatCurrent.String(); len(changes) != 1 || changes[0] != want {
+		t.Errorf("changes = %v, want [%s]", changes, want)
+	}
+	if got := f.format(); got != model.FormatCurrent {
+		t.Errorf("format on disk = %s", got)
+	}
+	if task, err := s.Task("mem", "WEB-1"); err != nil || task.Type != model.TypeTask {
+		t.Errorf("task = %+v, %v", task, err)
+	}
+}
+
+func TestOpenRefusesFormat(t *testing.T) {
+	cur := model.FormatCurrent
+	for _, v := range []model.Format{
+		{Major: cur.Major, Minor: cur.Minor + 1},
+		{Major: cur.Major + 1},
+		{Major: model.FormatMin - 1},
+	} {
+		f := newFixture(t)
+		f.s.Close()
+		f.setFormat(v)
+		var changes formatChanges
+		var fe *store.FormatError
+		if _, _, err := Open(f.root, changes.add); !errors.As(err, &fe) {
+			t.Errorf("format %s: Open = %v", v, err)
+		}
+		if got := f.format(); got != v || len(changes) != 0 {
+			t.Errorf("format %s: now %s, changes %v", v, got, changes)
+		}
+		if _, _, err := store.ReadLock(f.root); err == nil {
+			t.Errorf("format %s: lock left behind", v)
+		}
+	}
+}
+
 func TestUnknownStatePreserved(t *testing.T) {
 	f := newFixture(t)
 	f.s.Close()
@@ -442,7 +583,7 @@ func TestUnknownStatePreserved(t *testing.T) {
 		State: "someday", Priority: 3, Created: t0, Modified: t0}))
 	st.Close()
 
-	s, report, err := Open(f.root)
+	s, report, err := Open(f.root, nil)
 	f.ok(err)
 	defer s.Close()
 	if report.Warnings() != 1 {
@@ -714,7 +855,7 @@ func TestTokensAfterReopen(t *testing.T) {
 	_, secret, err := f.s.CreateToken("mem", "x")
 	f.ok(err)
 	f.ok(f.s.Close())
-	s, _, err := Open(f.root)
+	s, _, err := Open(f.root, nil)
 	f.ok(err)
 	defer s.Close()
 	if u, err := s.TokenLogin(secret); err != nil || u.ID != "mem" {

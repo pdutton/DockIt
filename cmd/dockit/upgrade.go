@@ -19,13 +19,13 @@ func runUpgrade(e *env, args []string) error {
 	}
 	res, err := upgrade.Run(dir, model.FormatCurrent, upgrade.Migrations)
 	if errors.Is(err, upgrade.ErrCurrent) {
-		fmt.Fprintf(e.stdout, "The dataset is already in format %d; nothing to do.\n", model.FormatCurrent)
+		fmt.Fprintf(e.stdout, "The dataset is already in format %s; nothing to do.\n", model.FormatCurrent)
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(e.stdout, "Upgraded the dataset from format %d to %d.\n", res.From, res.To)
+	fmt.Fprintf(e.stdout, "Upgraded the dataset from format %s to %s.\n", res.From, res.To)
 	fmt.Fprintln(e.stdout, "Run `dockit check` to confirm the result.")
 	return nil
 }

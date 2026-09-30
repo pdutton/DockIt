@@ -1,7 +1,6 @@
 package index
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -262,11 +261,37 @@ func dump(r *Report) string {
 }
 
 func TestLoadFormat(t *testing.T) {
-	root := newDataset(t)
-	edit(t, root, "dockit.yaml", fmt.Sprintf("format: %d", model.FormatCurrent), "format: 99")
-	x, r := Load(root)
-	if x != nil || r.OK() || !strings.Contains(dump(r), "newer than this build supports") {
-		t.Errorf("x = %v, report:\n%s", x, dump(r))
+	cur := model.FormatCurrent
+	for _, tc := range []struct {
+		format model.Format
+		want   string // in the report; "" if it loads
+	}{
+		{model.Format{Major: cur.Major}, ""},
+		{model.Format{Major: cur.Major, Minor: cur.Minor + 1}, "newer than this build supports"},
+		{model.Format{Major: cur.Major + 1}, "newer than this build supports"},
+		{model.Format{Major: cur.Major - 1}, "`dockit serve` or `dockit upgrade` will upgrade it"},
+	} {
+		root := newDataset(t)
+		meta, err := store.ReadMeta(root)
+		must(t, err)
+		meta.SetVersion(tc.format)
+		s, err := store.OpenAnyFormat(root)
+		must(t, err)
+		must(t, s.WriteMeta(meta))
+		s.Close()
+
+		x, r := Load(root)
+		if tc.want == "" {
+			if x == nil || !r.OK() || x.Meta().Version() != tc.format {
+				t.Errorf("format %s: report:\n%s", tc.format, dump(r))
+			}
+			// Load reads; it never updates the format.
+			if m, _ := store.ReadMeta(root); m.Version() != tc.format {
+				t.Errorf("format %s: Load changed it to %s", tc.format, m.Version())
+			}
+		} else if x != nil || r.OK() || !strings.Contains(dump(r), tc.want) {
+			t.Errorf("format %s: x = %v, report:\n%s", tc.format, x, dump(r))
+		}
 	}
 }
 
