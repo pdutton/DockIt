@@ -226,6 +226,22 @@ func TestLoadProblems(t *testing.T) {
 			"projects/WEB/tasks/README", "unexpected file", true},
 		{"leftover temp file", func(t *testing.T, r string) { write(t, r, "users/.bob.yaml.tmp", "partial") },
 			"users/.bob.yaml.tmp", "leftover temporary file", true},
+		{"link to missing task", func(t *testing.T, r string) { write(t, r, "links.yaml", link("WEB-1", "blocks", "WEB-3")) },
+			"links.yaml", `[0].b: task "WEB-3" does not exist`, false},
+		{"link with malformed ID", func(t *testing.T, r string) { write(t, r, "links.yaml", link("web-1", "blocks", "WEB-2")) },
+			"links.yaml", `[0].a: "web-1" is not a valid task ID`, false},
+		{"link to itself", func(t *testing.T, r string) { write(t, r, "links.yaml", link("WEB-1", "related", "WEB-1")) },
+			"links.yaml", "cannot be linked to itself", false},
+		{"link by missing user", func(t *testing.T, r string) {
+			write(t, r, "links.yaml", strings.Replace(link("WEB-1", "blocks", "WEB-2"), "bob", "carol", 1))
+		}, "links.yaml", `[0].creator: user "carol" does not exist`, false},
+		{"unknown link type", func(t *testing.T, r string) { write(t, r, "links.yaml", link("WEB-1", "haunts", "WEB-2")) },
+			"links.yaml", `unknown link type "haunts"`, true},
+		{"duplicate link", func(t *testing.T, r string) {
+			write(t, r, "links.yaml", link("WEB-1", "related", "WEB-2")+link("WEB-2", "related", "WEB-1"))
+		}, "links.yaml", "[1]: the same link as an earlier one", true},
+		{"unparseable links", func(t *testing.T, r string) { write(t, r, "links.yaml", "a: WEB-1\n") },
+			"links.yaml", "cannot parse", false},
 		{"missing users dir", func(t *testing.T, r string) {
 			must(t, os.RemoveAll(filepath.Join(r, "users")))
 			must(t, os.RemoveAll(filepath.Join(r, "auth")))
@@ -309,5 +325,41 @@ func TestLoadIgnoresLockFile(t *testing.T) {
 	defer s.Close()
 	if _, r := Load(root); len(r.Problems) != 0 {
 		t.Errorf("problems with a lock held:\n%s", dump(r))
+	}
+}
+
+// link is a links.yaml entry made by bob.
+func link(a, typ, b string) string {
+	return "- a: " + a + "\n  type: " + typ + "\n  b: " + b + "\n  creator: bob\n  created: 2026-09-26T21:54:43Z\n"
+}
+
+func TestLoadLinks(t *testing.T) {
+	root := newDataset(t)
+	// Out of order, and an undirected link the wrong way round, as a hand
+	// edit might leave them.
+	write(t, root, "links.yaml", link("WEB-10", "related", "WEB-2")+link("WEB-1", "blocks", "WEB-10"))
+	x, r := Load(root)
+	if len(r.Problems) != 0 {
+		t.Fatalf("problems:\n%s", dump(r))
+	}
+	var got []string
+	for _, l := range x.Links() {
+		got = append(got, l.A+" "+l.Type+" "+l.B)
+	}
+	if want := "WEB-1 blocks WEB-10, WEB-2 related WEB-10"; strings.Join(got, ", ") != want {
+		t.Errorf("links = %v, want %s", got, want)
+	}
+	if got := x.TaskLinks("WEB-2"); len(got) != 1 || got[0].A != "WEB-2" {
+		t.Errorf("TaskLinks(WEB-2) = %v", got)
+	}
+
+	// An empty or missing file means no links.
+	write(t, root, "links.yaml", "")
+	if x, r := Load(root); len(r.Problems) != 0 || len(x.Links()) != 0 {
+		t.Errorf("empty links.yaml: %v, %v", x.Links(), r.Problems)
+	}
+	must(t, os.Remove(filepath.Join(root, "links.yaml")))
+	if x, r := Load(root); len(r.Problems) != 0 || len(x.Links()) != 0 {
+		t.Errorf("no links.yaml: %v, %v", x.Links(), r.Problems)
 	}
 }

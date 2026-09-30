@@ -390,6 +390,59 @@ func TestTasksAndComments(t *testing.T) {
 	f.want(view.get("/projects/WEB/tasks/new"), 403)
 }
 
+func TestLinks(t *testing.T) {
+	f := newFixture(t)
+	for _, title := range []string{"Sign the binaries", "Get a signing key", "Old idea"} {
+		if _, err := f.svc.CreateTask("mem", "WEB", service.NewTask{Title: title}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := f.svc.UpdateTask("mem", "WEB-3", 1, service.TaskPatch{
+		State: ptr(model.TaskComplete), Substate: ptr(model.SubstateRejected)}); err != nil {
+		t.Fatal(err)
+	}
+	mem := f.login("mem")
+	f.want(mem.get("/tasks/WEB-1"), 200, "No links.", `<option value="blocked_by">is blocked by</option>`, "Add link")
+
+	// Task IDs are taken in any case.
+	p := mem.post("/tasks/WEB-1/links", "relation", "blocked_by", "task", " web-2 ")
+	if p.status != http.StatusSeeOther || p.location != "/tasks/WEB-1#links" {
+		t.Fatalf("add link: %d %s %s", p.status, p.location, p.body)
+	}
+	if p := mem.post("/tasks/WEB-1/links", "relation", "duplicates", "task", "WEB-3"); p.status != http.StatusSeeOther {
+		t.Fatalf("add link: %d %s", p.status, p.body)
+	}
+	f.want(mem.get("/tasks/WEB-1"), 200, "<h3 class=\"links\">Blocked by</h3>", `<a href="/tasks/WEB-2">WEB-2</a>`,
+		"Get a signing key", `<li class="done">`, "Old idea", `action="/tasks/WEB-1/links/blocked_by/WEB-2/delete"`)
+	// The other end sees it the other way round.
+	f.want(mem.get("/tasks/WEB-2"), 200, "<h3 class=\"links\">Blocks</h3>", `<a href="/tasks/WEB-1">WEB-1</a>`)
+
+	// A failed add keeps the form and says why.
+	f.want(mem.post("/tasks/WEB-1/links", "relation", "related", "task", "WEB-9"), 422,
+		`task &#34;WEB-9&#34; does not exist`, `value="WEB-9"`, `<option value="related" selected>`)
+	f.want(mem.post("/tasks/WEB-1/links", "relation", "related", "task", "WEB-1"), 422, "cannot be linked to itself")
+
+	view := f.login("view")
+	p = view.get("/tasks/WEB-1")
+	f.want(p, 200, "Blocked by")
+	if strings.Contains(p.body, "Add link") || strings.Contains(p.body, "Remove") {
+		t.Error("viewer sees link controls")
+	}
+	f.want(view.post("/tasks/WEB-1/links", "relation", "related", "task", "WEB-2"), 403)
+	f.want(view.post("/tasks/WEB-2/links/blocks/WEB-1/delete"), 403)
+
+	// Removing works from either end, and removing it again is no error.
+	for range 2 {
+		p = mem.post("/tasks/WEB-2/links/blocks/WEB-1/delete")
+		if p.status != http.StatusSeeOther || p.location != "/tasks/WEB-2#links" {
+			t.Fatalf("remove link: %d %s %s", p.status, p.location, p.body)
+		}
+	}
+	f.want(mem.get("/tasks/WEB-2"), 200, "No links.")
+}
+
+func ptr[T any](v T) *T { return &v }
+
 func TestUsersAndTokens(t *testing.T) {
 	f := newFixture(t)
 	admin := f.login("admin")

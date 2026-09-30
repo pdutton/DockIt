@@ -1,6 +1,7 @@
 package web
 
 import (
+	"cmp"
 	"errors"
 	"net/http"
 	"slices"
@@ -364,6 +365,8 @@ type taskViewData struct {
 	Comment        commentState
 	EditingOpen    bool // open the edit form, after a failed edit
 	CommentsByUser map[string]bool
+	Links          []linkGroup
+	Link           linkState // link form state after a failed add
 }
 
 type commentState struct {
@@ -384,6 +387,9 @@ func (w *Web) taskPage(rw http.ResponseWriter, r *http.Request, c *ctx, status i
 		return err
 	}
 	data := taskViewData{Task: t, Project: p, Form: taskFormFrom(t)}
+	if data.Links, err = w.linkGroups(c, t.ID); err != nil {
+		return err
+	}
 	if fill != nil {
 		fill(&data)
 	}
@@ -478,6 +484,76 @@ func (w *Web) commentDelete(rw http.ResponseWriter, r *http.Request, c *ctx) err
 		return w.commentFailed(rw, r, c, tid, commentState{ID: cid}, err)
 	}
 	return redirect(rw, r, "/tasks/"+tid+"#comments")
+}
+
+// Links.
+
+// linkGroup is the links of one relation, such as "Blocked by".
+type linkGroup struct {
+	Relation model.Relation // Heading is empty for an unknown link type
+	Items    []linkItem
+}
+
+type linkItem struct {
+	Link  service.TaskLink
+	Other *model.Task // the linked task
+}
+
+type linkState struct {
+	Relation string
+	Task     string
+	Error    string
+}
+
+// linkGroups returns the links of task tid, grouped by relation.
+func (w *Web) linkGroups(c *ctx, tid string) ([]linkGroup, error) {
+	links, err := w.svc.Links(c.me.ID, tid)
+	if err != nil {
+		return nil, err
+	}
+	var groups []linkGroup
+	for _, l := range links {
+		if len(groups) == 0 || groups[len(groups)-1].Relation.ID != l.Relation {
+			rel, _ := model.RelationByID(l.Relation)
+			rel.ID = l.Relation
+			groups = append(groups, linkGroup{Relation: rel})
+		}
+		other, err := w.svc.Task(c.me.ID, l.Task)
+		if err != nil && !errors.Is(err, service.ErrNotFound) {
+			return nil, err
+		}
+		g := &groups[len(groups)-1]
+		g.Items = append(g.Items, linkItem{Link: l, Other: other})
+	}
+	return groups, nil
+}
+
+func (w *Web) linkAdd(rw http.ResponseWriter, r *http.Request, c *ctx) error {
+	tid := r.PathValue("tid")
+	// Task IDs are upper case, so a lower-case entry can only mean the same.
+	ls := linkState{
+		Relation: r.PostForm.Get("relation"),
+		Task:     strings.ToUpper(strings.TrimSpace(r.PostForm.Get("task"))),
+	}
+	if _, _, err := w.svc.AddLink(c.me.ID, tid, ls.Relation, ls.Task); err != nil {
+		fields, _, ok := formErrors(err)
+		if !ok {
+			return err
+		}
+		ls.Error = cmp.Or(fields["task"], fields["type"], fields["b"])
+		return w.taskPage(rw, r, c, http.StatusUnprocessableEntity, tid, func(d *taskViewData) { d.Link = ls })
+	}
+	return redirect(rw, r, "/tasks/"+tid+"#links")
+}
+
+func (w *Web) linkRemove(rw http.ResponseWriter, r *http.Request, c *ctx) error {
+	tid := r.PathValue("tid")
+	// A link already gone, say removed in another tab, needs no error page.
+	err := w.svc.RemoveLink(c.me.ID, tid, r.PathValue("type"), r.PathValue("other"))
+	if err != nil && !errors.Is(err, service.ErrNotFound) {
+		return err
+	}
+	return redirect(rw, r, "/tasks/"+tid+"#links")
 }
 
 // Users.

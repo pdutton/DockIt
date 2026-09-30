@@ -22,6 +22,7 @@ type Index struct {
 	maxTask  map[string]int // highest task number per project
 	users    map[string]*model.User
 	auth     map[string]*model.Auth
+	links    []model.Link // in stored order; see model.SortLinks
 }
 
 // New returns an empty index for a dataset with metadata meta.
@@ -146,3 +147,25 @@ func (x *Index) PutAuth(a *model.Auth) {
 
 // TaskCount returns the number of tasks in all projects.
 func (x *Index) TaskCount() int { return len(x.tasks) }
+
+// Links returns every link, in stored order.
+func (x *Index) Links() []model.Link {
+	return slices.Clone(x.links)
+}
+
+// SetLinks replaces every link.
+func (x *Index) SetLinks(links []model.Link) {
+	x.links = slices.Clone(links)
+	model.SortLinks(x.links)
+}
+
+// TaskLinks returns the links to or from task tid, in stored order.
+func (x *Index) TaskLinks(tid string) []model.Link {
+	var out []model.Link
+	for _, l := range x.links {
+		if l.A == tid || l.B == tid {
+			out = append(out, l)
+		}
+	}
+	return out
+}

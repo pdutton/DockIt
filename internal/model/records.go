@@ -22,7 +22,7 @@ type Format struct {
 // earlier minor of the same major, updating the dataset's format to this one
 // when it opens it for writing, and upgrades any earlier major from
 // FormatMin.
-var FormatCurrent = Format{Major: 2, Minor: 1}
+var FormatCurrent = Format{Major: 2, Minor: 2}
 
 // FormatMin is the oldest major format this build can upgrade.
 const FormatMin = 1

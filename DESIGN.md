@@ -98,6 +98,7 @@ Individual files will be written in a manner that protects against corruption.
 <dataset root>/
 ├── dockit.yaml                 # dataset metadata (format version, dataset id)
 ├── dockit.lock                 # present only while an instance is running
+├── links.yaml                  # every link between tasks; absent until the first link
 ├── projects/
 │   └── WEB/
 │       ├── WEB.yaml            # project WEB
@@ -113,6 +114,8 @@ Individual files will be written in a manner that protects against corruption.
 - Projects live under `projects/` rather than directly under the root, so a project ID can never collide
   with `users`, `auth` or any directory added later.
 - Comments live inside their task's file, keeping "one task, one file".
+- Links live in `links.yaml`, not in either task, since a link belongs to neither task.  Adding or
+  removing one never rewrites a task file.
 - There is no counter file.  The next task number for a project is `max(existing) + 1`, computed from the
   index.  Tasks are never deleted, so numbers are never reused.
 - File name must equal the ID inside the file.  `dockit check` reports any mismatch.
@@ -172,6 +175,8 @@ Format history:
 |        | Task `urls`, optional, with the task URL type `pr`.                    |
 |        | Substate `duplicate` of `complete`.                                    |
 | 2.1    | `format_minor` in `dockit.yaml`, optional.                             |
+| 2.2    | `links.yaml`, optional, with the link types `related`, `conflicts`,    |
+|        | `depends`, `blocks` and `duplicates`.                                  |
 
 ### Record formats
 
@@ -258,6 +263,50 @@ Notes:
   built-in order and empty lists are omitted.  The REST API uses the same shape.
 - The task's project is implied by its ID prefix and its directory; it is not stored separately.
 
+#### Links
+
+Links, `links.yaml`, a list of every link in the dataset:
+
+```yaml
+- a: ACME-7
+  type: blocks
+  b: ACME-6
+  creator: pdutton
+  created: 2026-09-30T01:30:00Z
+```
+
+Each link reads "a *type* b", and each task shows it worded from its own side:
+
+| Type         | Wording from a  | Wording from b      |
+|--------------|-----------------|---------------------|
+| `related`    | related to      | related to          |
+| `conflicts`  | conflicts with  | conflicts with      |
+| `depends`    | depends on      | is a dependency of  |
+| `blocks`     | blocks          | is blocked by       |
+| `duplicates` | duplicates      | is duplicated by    |
+
+- The tasks may be in different projects.  Both must exist, and a task cannot be linked to itself.
+  Links are informational only: they place no limits on state changes.
+- Directed links are stored in the direction in the table.  `related` and `conflicts` read the same
+  either way, so the lower task ID is always `a`, and "A related B" and "B related A" are the same
+  record.  The same two tasks may have links of several types.
+- Entries are sorted by `a`, then `type`, then `b`, so the file diffs cleanly.  Task IDs sort by
+  project, then by number as a number (`WEB-2` before `WEB-10`).
+- Each change rewrites the whole file atomically, inside the service's write mutex.  Links have no
+  `version` and need no `If-Match`: a link can only be added or removed.  Adding one that already
+  exists does nothing.
+- A link belongs to neither task, so adding or removing one never touches a task file, and the
+  tasks' `version` and `modified` stay the same.
+- If `links.yaml` is missing or empty, there are no links.
+- `dockit check` reports a link to a task that does not exist, a malformed task ID, or a missing
+  creator as an error.  An unknown link type is a warning and is kept, as for other enumerations, and
+  a second copy of a link is a warning and is dropped the next time links change.
+- The REST API and the Web UI name a link from one task's side, so a link can be added or removed from
+  either end.  These relation ids are `related`, `conflicts`, `depends_on`, `dependency_of`,
+  `blocks`, `blocked_by`, `duplicates` and `duplicated_by`.  A link is sent as
+  `{"type": "blocked_by", "task": "ACME-7", "creator": "pdutton", "created": "..."}`, where `type` is
+  the relation from the task in the URL and `task` is the other task.
+
 ### Identifiers
 
 | Entity  | Format (proposed)                        | Example   |
@@ -285,6 +334,7 @@ Built into the implementation as a table of stable id → display string:
 | Task type     | `bugfix`, `enhancement`, `feature`, `task`, `documentation`, `research` (displayed as Bug Fix, Enhancement, Feature, Task, Documentation, Research) |
 | URL type      | `code`, `doc`, `web` (displayed as Code, Documentation, Website) |
 | Task URL type | `pr` (displayed as Pull Requests)                      |
+| Link type     | `related`, `conflicts`, `depends`, `blocks`, `duplicates`; see [Links](#links) |
 | Role          | see [Roles and Permissions](#roles-and-permissions)    |
 
 - A task's `substate` is required if and only if its state has substates.  On a transition out of such a
@@ -326,8 +376,9 @@ files are deleted at startup, which is safe because the lock is held.
 ### Backup, restore and outside readers
 
 - **Backup:** copy the dataset directory.  Because every file is written atomically, a copy taken while
-  DockIt runs contains only complete files, and no invariant spans files except "a referenced user exists",
-  which holds because users are never deleted.  Exclude `dockit.lock` from the copy.
+  DockIt runs contains only complete files, and no invariant spans files except "a referenced user exists"
+  and "a linked task exists", which hold because users and tasks are never deleted.  Exclude
+  `dockit.lock` from the copy.
 - **Restore:** stop DockIt, replace the directory, start DockIt.  The index is rebuilt from disk.
 - **Outside readers** may read the dataset at any time.  **Outside writers** are not supported while
   DockIt is running, because the index would go stale.  Anyone editing files by hand should stop DockIt,
@@ -406,6 +457,7 @@ and `admin`:
 | Create and edit tasks                    |        | ✓      | ✓     |
 | Add comments                             |        | ✓      | ✓     |
 | Edit or delete own comments              |        | ✓      | ✓     |
+| Add and remove links                     |        | ✓      | ✓     |
 | Manage own password and API tokens       | ✓      | ✓      | ✓     |
 | Create and edit projects                 |        |        | ✓     |
 | Create, edit, deactivate users; set role |        |        | ✓     |
@@ -441,10 +493,21 @@ change, including a comment, still updates the task's `modified` timestamp, per 
 (Rejected: one version per task file, where adding a comment invalidates every open edit form for that
 task.)
 
+**Decided — links are kept apart from tasks.**  A link belongs to neither of its tasks, so all links live
+in `links.yaml`.  Adding or removing a link never writes a task file, so it cannot conflict with a task
+edit and does not change either task's `version` or `modified`.  Links have no `version` of their own:
+they are only added or removed, and adding one that exists already does nothing.  (Rejected: storing
+each link in one of its tasks, which makes the other end hard to find for outside readers; and in both,
+which needs two file writes that cannot be atomic together.)
+
 ## Web UI
 
 - Server-rendered pages: project list, project detail with its task
-  list, task detail with comments and edit form, user admin, and "my account" for password and tokens.
+  list, task detail with links, comments and edit form, user admin, and "my account" for password and
+  tokens.
+- A task's links are grouped by their wording from that task (Blocks, Blocked by, Depends on, and so
+  on).  Each shows the other task's ID, title and state, dimmed when it is complete.  Links are added with
+  a relationship select and a task ID box, and each has a remove button.  Task lists do not show links.
 - Task lists can be filtered by state, owner and priority and sorted by priority or modified time.  This
   is cheap given the in-memory index.  Several states can be chosen at once; a priority shows tasks of
   that priority or higher (1 to n).  A list opened with no query shows every state but Complete and
@@ -483,6 +546,11 @@ GET    /api/v1/tasks/{tid}/comments/{cid}
 PATCH  /api/v1/tasks/{tid}/comments/{cid}       edit own (If-Match)
 DELETE /api/v1/tasks/{tid}/comments/{cid}       delete own (If-Match)
 
+GET    /api/v1/tasks/{tid}/links                links to and from the task, worded from its side
+POST   /api/v1/tasks/{tid}/links                add, {"type": "blocked_by", "task": "ACME-7"}
+GET    /api/v1/tasks/{tid}/links/{type}/{other}
+DELETE /api/v1/tasks/{tid}/links/{type}/{other} remove
+
 GET    /api/v1/users                            list
 POST   /api/v1/users                            create (admin)
 GET    /api/v1/users/{uid}
@@ -494,7 +562,7 @@ GET    /api/v1/me/tokens                        list own tokens (metadata only)
 POST   /api/v1/me/tokens                        create; token returned once
 DELETE /api/v1/me/tokens/{id}                   revoke
 
-GET    /api/v1/enums                            states, substates, task types, URL types, roles, display strings
+GET    /api/v1/enums                            states, substates, task types, URL types, link types, roles, display strings
 ```
 
 - `PATCH` bodies are JSON Merge Patch (RFC 7396).
@@ -522,6 +590,7 @@ Enforced in the service layer, identically for both interfaces:
 | Task type                 | a known type, default `task`                       |
 | Found in, resolved in     | optional, up to 50 characters, no control characters; free-form, so any versioning scheme works |
 | Owner                     | an existing active user                            |
+| Link                      | a known relation; both tasks exist and are different tasks |
 
 ## Command Line
 
@@ -551,3 +620,4 @@ Timezone conversion and formatting is the job of the web interface / browser or 
 | 4 | Role set                               | viewer / member / admin                  |
 | 5 | Project ID case                        | Uppercase                                |
 | 6 | Web assets                             | Embedded in the binary; no override      |
+| 7 | Where links are stored                 | `links.yaml`, apart from any task        |

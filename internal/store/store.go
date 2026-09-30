@@ -19,6 +19,7 @@ import (
 // Names of files and directories in the dataset root.
 const (
 	MetaFile    = "dockit.yaml"
+	LinksFile   = "links.yaml"
 	ProjectsDir = "projects"
 	UsersDir    = "users"
 	AuthDir     = "auth"
@@ -229,6 +230,14 @@ func (s *Store) WriteTask(t *model.Task) error {
 	return s.write(TaskPath(s.root, t.ID), t)
 }
 
+// WriteLinks writes links.yaml, which holds every link in the dataset.
+func (s *Store) WriteLinks(links []model.Link) error {
+	if links == nil {
+		links = []model.Link{}
+	}
+	return s.write(filepath.Join(s.root, LinksFile), links)
+}
+
 // WriteUser writes a user profile.
 func (s *Store) WriteUser(u *model.User) error {
 	if err := checkUserID(u.ID); err != nil {
@@ -290,6 +299,20 @@ func ReadAuth(root, uid string) (*model.Auth, error) {
 	return ReadPath[model.Auth](AuthPath(root, uid))
 }
 
+// ReadLinks reads links.yaml in root.  A missing or empty file means there
+// are no links.
+func ReadLinks(root string) ([]model.Link, error) {
+	var links []model.Link
+	err := readFile(filepath.Join(root, LinksFile), &links)
+	switch {
+	case errors.Is(err, fs.ErrNotExist) || errors.Is(err, errEmpty):
+		return nil, nil
+	case err != nil:
+		return nil, err
+	}
+	return links, nil
+}
+
 // ReadPath decodes the YAML file at path into a new T, strictly (see readFile).
 func ReadPath[T any](path string) (*T, error) {
 	var v T
@@ -324,12 +347,14 @@ func readFile(path string, v any) error {
 	dec.KnownFields(true)
 	if err := dec.Decode(v); err != nil {
 		if errors.Is(err, io.EOF) {
-			err = errors.New("empty file")
+			err = errEmpty
 		}
 		return &ParseError{Path: path, Err: err}
 	}
 	return nil
 }
+
+var errEmpty = errors.New("empty file")
 
 // ParseError is returned when a file exists but is not a valid record.
 type ParseError struct {
