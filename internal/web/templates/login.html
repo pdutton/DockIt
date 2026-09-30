@@ -1,4 +1,16 @@
 {{define "content"}}
+<div class="hero" aria-hidden="true">
+  <svg class="hero-mark" viewBox="6 0 160 144" focusable="false">
+    <g transform="translate(60 0)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="4" width="96" height="124" rx="8" stroke-width="6"/>
+      <rect x="18" y="23" width="14" height="14" rx="3" stroke-width="3"/><path d="M21 30l3 4 6-8" stroke-width="3"/><path d="M42 30H84" stroke-width="5"/>
+      <rect x="18" y="49" width="14" height="14" rx="3" stroke-width="3"/><path d="M42 56H76" stroke-width="5"/>
+      <rect x="18" y="75" width="14" height="14" rx="3" stroke-width="3"/><path d="M42 82H66" stroke-width="5"/>
+    </g>
+    <g class="logo-accent" fill="currentColor" transform="translate(0 60) scale(1.35)">{{template "gavel"}}</g>
+  </svg>
+  <span class="hero-name">DockIt</span>
+</div>
 <form method="post" action="/login" class="card narrow">
   <h1>Log in</h1>
   {{with .Data.Error}}<p class="error">{{.}}</p>{{end}}

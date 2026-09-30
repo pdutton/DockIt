@@ -5,13 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}} · DockIt</title>
 <link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <script src="/static/app.js" defer></script>
 </head>
 <body>
 <header class="top">
   {{/* Only logged-in users see the version; strangers need not know it. */}}
   <div class="home">
-    <a class="brand" href="/">DockIt</a>
+    <a class="brand" href="/" aria-label="DockIt"><svg class="brand-mark" viewBox="5 1 50 58" aria-hidden="true" focusable="false"><path class="logo-accent" d="M8 4H26A26 26 0 0 1 26 56H8Z" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/><g fill="currentColor" transform="translate(9 13) scale(0.56)">{{template "gavel"}}</g></svg>ock<span class="logo-accent">I</span>t</a>
     {{if .Me}}<span class="version" title="DockIt {{.Version}}, dataset format {{.Format}}">{{.Version}} · format {{.Format}}</span>{{end}}
   </div>
   {{if .Me}}
@@ -97,3 +98,6 @@
 {{end}}
 {{with .Errors.urls}}<span class="error">{{.}}</span>{{end}}
 {{end}}
+
+{{/* The gavel of the logo, in a 64×64 box, handle to the lower left.  static/favicon.svg has a copy. */}}
+{{define "gavel"}}<g transform="translate(-7 6) rotate(40 32 32)"><rect x="14" y="10" width="36" height="18" rx="4"/><rect x="10" y="7" width="8" height="24" rx="2"/><rect x="46" y="7" width="8" height="24" rx="2"/><rect x="29" y="28" width="6" height="30" rx="3"/></g>{{end}}

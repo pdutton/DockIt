@@ -56,7 +56,10 @@ h2 { font-size: 1.25rem; margin-top: 2rem; }
   padding: 0.6rem 1rem; border-bottom: 1px solid var(--line); background: var(--card);
 }
 .home { display: flex; gap: 0.6rem; align-items: baseline; }
-.brand { font-weight: 700; text-decoration: none; color: var(--fg); }
+.brand { font-size: 1.125rem; font-weight: 700; text-decoration: none; color: var(--fg); white-space: nowrap; }
+/* The logo's D sits on the baseline and rises a little above the capitals. */
+.brand-mark { width: 1.03em; height: 1.2em; margin-right: 0.04em; vertical-align: baseline; }
+.logo-accent { color: var(--accent); }
 .version { color: var(--muted); font-size: 0.8rem; }
 .top nav { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
 .top nav a { text-decoration: none; }
@@ -82,6 +85,11 @@ table.tasks .title { white-space: normal; width: 100%; min-width: 14rem; }
   padding: 1rem 1.25rem; margin: 1rem 0;
 }
 .narrow { max-width: 24rem; margin: 3rem auto; }
+
+.hero { display: flex; gap: 1.25rem; align-items: center; justify-content: center; margin-top: 2.5rem; }
+.hero + .narrow { margin-top: 1.5rem; }
+.hero-mark { width: 7rem; height: auto; }
+.hero-name { font-size: 2.75rem; font-weight: 700; }
 
 label { display: block; margin: 0.75rem 0; font-weight: 600; }
 label.check { font-weight: normal; }

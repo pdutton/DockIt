@@ -178,6 +178,19 @@ func TestSecurityHeaders(t *testing.T) {
 	}
 }
 
+func TestLogo(t *testing.T) {
+	f := newFixture(t)
+	p := f.browser().get("/login")
+	if s := f.browser().get("/static/favicon.svg"); s.status != 200 || s.header.Get("Content-Type") != "image/svg+xml" {
+		t.Errorf("favicon: %d %q", s.status, s.header.Get("Content-Type"))
+	}
+	for _, want := range []string{`href="/static/favicon.svg"`, `class="brand-mark"`, `class="hero-mark"`, "rotate(40 32 32)"} {
+		if !strings.Contains(p.body, want) {
+			t.Errorf("login page lacks %s", want)
+		}
+	}
+}
+
 func TestLoginFlow(t *testing.T) {
 	f := newFixture(t)
 	b := f.browser()
