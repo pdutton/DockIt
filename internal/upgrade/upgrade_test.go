@@ -116,6 +116,35 @@ func TestUpgradeMinor(t *testing.T) {
 	}
 }
 
+// A dataset this build can read is loaded first, and one with errors is
+// refused, as `dockit serve` refuses it.
+func TestUpgradeMinorChecksDataset(t *testing.T) {
+	root := newDataset(t)
+	setFormat(t, root, model.FormatCurrent)
+	next := model.Format{Major: model.FormatCurrent.Major, Minor: model.FormatCurrent.Minor + 1}
+	if err := os.WriteFile(filepath.Join(root, "users", "ghost.yaml"), []byte("id: [\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var le *LoadError
+	if _, err := Run(root, next, nil); !errors.As(err, &le) || le.Report.OK() {
+		t.Fatalf("err = %v, want LoadError", err)
+	}
+	if f := format(t, root); f != model.FormatCurrent {
+		t.Errorf("format %s, want it unchanged", f)
+	}
+	if _, err := os.Stat(filepath.Join(root, store.LockFile)); !os.IsNotExist(err) {
+		t.Error("lock not released")
+	}
+
+	// Once fixed, it is updated.
+	if err := os.Remove(filepath.Join(root, "users", "ghost.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	if res, err := Run(root, next, nil); err != nil || res.To != next || format(t, root) != next {
+		t.Errorf("Run = %+v, %v; format %s", res, err, format(t, root))
+	}
+}
+
 func TestUpgradeCurrent(t *testing.T) {
 	root := newDataset(t)
 	setFormat(t, root, model.FormatCurrent)
