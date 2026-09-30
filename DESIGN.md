@@ -505,9 +505,10 @@ which needs two file writes that cannot be atomic together.)
 - Server-rendered pages: project list, project detail with its task
   list, task detail with links, comments and edit form, user admin, and "my account" for password and
   tokens.
-- A task's links are grouped by their wording from that task (Blocks, Blocked by, Depends on, and so
-  on).  Each shows the other task's ID, title and state, dimmed when it is complete.  Links are added with
-  a relationship select and a task ID box, and each has a remove button.  Task lists do not show links.
+- A task's links are listed one per line, ordered by their wording from that task (Blocks, Blocked by,
+  Depends on, and so on): the wording, then the other task's ID and title as one link, then its state
+  as a pill coloured by state.  A complete task's line is dimmed.  Links are added with a relationship
+  select and a task ID box, and each has a remove button.  Task lists do not show links.
 - Task lists can be filtered by state, owner and priority and sorted by priority or modified time.  This
   is cheap given the in-memory index.  Several states can be chosen at once; a priority shows tasks of
   that priority or higher (1 to n).  A list opened with no query shows every state but Complete and

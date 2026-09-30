@@ -9,6 +9,11 @@
   --danger: #b91c1c;
   --warn-bg: #fef3c7;
   --note-bg: #e0f2fe;
+  /* Task state pills: background, then text. */
+  --pill-bg: #e7e5e4;          --pill-fg: #44403c;
+  --pill-new-bg: #dbeafe;      --pill-new-fg: #1e40af;
+  --pill-progress-bg: #fef3c7; --pill-progress-fg: #92400e;
+  --pill-complete-bg: #dcfce7; --pill-complete-fg: #166534;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -23,6 +28,10 @@
     --danger: #f87171;
     --warn-bg: #422006;
     --note-bg: #082f49;
+    --pill-bg: #44403c;          --pill-fg: #e7e5e4;
+    --pill-new-bg: #1e3a8a;      --pill-new-fg: #dbeafe;
+    --pill-progress-bg: #78350f; --pill-progress-fg: #fef3c7;
+    --pill-complete-bg: #14532d; --pill-complete-fg: #dcfce7;
   }
 }
 
@@ -127,10 +136,19 @@ details > summary { cursor: pointer; color: var(--accent); }
 .comment { border-top: 1px solid var(--line); padding: 0.75rem 0; }
 .comment header { color: var(--muted); font-size: 0.9rem; }
 
-h3.links { font-size: 1rem; margin: 1rem 0 0.25rem; }
 ul.links { list-style: none; margin: 0; padding: 0; }
 ul.links li { padding: 0.2rem 0; }
 ul.links li.done { opacity: 0.6; }
-ul.links .state { color: var(--muted); font-size: 0.85rem; }
 ul.links form.inline { margin-left: 0.5rem; }
+
+/* A task state on a coloured, rounded background.  Paused, Deferred and any
+   unknown state keep the neutral colours. */
+.pill {
+  display: inline-block; padding: 0 0.5rem; border-radius: 999px;
+  font-size: 0.8rem; font-weight: 600; line-height: 1.5; white-space: nowrap;
+  background: var(--pill-bg); color: var(--pill-fg);
+}
+.pill.state-new { background: var(--pill-new-bg); color: var(--pill-new-fg); }
+.pill.state-in_progress { background: var(--pill-progress-bg); color: var(--pill-progress-fg); }
+.pill.state-complete { background: var(--pill-complete-bg); color: var(--pill-complete-fg); }
 .linkform label { margin: 0; }
