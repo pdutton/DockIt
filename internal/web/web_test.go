@@ -412,10 +412,13 @@ func TestLinks(t *testing.T) {
 	if p := mem.post("/tasks/WEB-1/links", "relation", "duplicates", "task", "WEB-3"); p.status != http.StatusSeeOther {
 		t.Fatalf("add link: %d %s", p.status, p.body)
 	}
-	f.want(mem.get("/tasks/WEB-1"), 200, "<h3 class=\"links\">Blocked by</h3>", `<a href="/tasks/WEB-2">WEB-2</a>`,
-		"Get a signing key", `<li class="done">`, "Old idea", `action="/tasks/WEB-1/links/blocked_by/WEB-2/delete"`)
+	f.want(mem.get("/tasks/WEB-1"), 200, `<span class="relation">Blocked by</span>`,
+		// The ID and title are one link, and the state is a pill.
+		`<a href="/tasks/WEB-2">WEB-2 Get a signing key</a>`, `<span class="pill state-new">New</span>`,
+		`<li class="done">`, `<a href="/tasks/WEB-3">WEB-3 Old idea</a>`, `<span class="pill state-complete">Complete</span>`,
+		`action="/tasks/WEB-1/links/blocked_by/WEB-2/delete"`)
 	// The other end sees it the other way round.
-	f.want(mem.get("/tasks/WEB-2"), 200, "<h3 class=\"links\">Blocks</h3>", `<a href="/tasks/WEB-1">WEB-1</a>`)
+	f.want(mem.get("/tasks/WEB-2"), 200, `<span class="relation">Blocks</span>`, `<a href="/tasks/WEB-1">WEB-1 Sign the binaries</a>`)
 
 	// A failed add keeps the form and says why.
 	f.want(mem.post("/tasks/WEB-1/links", "relation", "related", "task", "WEB-9"), 422,

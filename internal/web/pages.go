@@ -365,7 +365,7 @@ type taskViewData struct {
 	Comment        commentState
 	EditingOpen    bool // open the edit form, after a failed edit
 	CommentsByUser map[string]bool
-	Links          []linkGroup
+	Links          []linkItem
 	Link           linkState // link form state after a failed add
 }
 
@@ -387,7 +387,7 @@ func (w *Web) taskPage(rw http.ResponseWriter, r *http.Request, c *ctx, status i
 		return err
 	}
 	data := taskViewData{Task: t, Project: p, Form: taskFormFrom(t)}
-	if data.Links, err = w.linkGroups(c, t.ID); err != nil {
+	if data.Links, err = w.linkItems(c, t.ID); err != nil {
 		return err
 	}
 	if fill != nil {
@@ -488,15 +488,11 @@ func (w *Web) commentDelete(rw http.ResponseWriter, r *http.Request, c *ctx) err
 
 // Links.
 
-// linkGroup is the links of one relation, such as "Blocked by".
-type linkGroup struct {
-	Relation model.Relation // Heading is empty for an unknown link type
-	Items    []linkItem
-}
-
+// linkItem is one line of a task's links: "Blocked by WEB-7 Title".
 type linkItem struct {
-	Link  service.TaskLink
-	Other *model.Task // the linked task
+	Relation model.Relation // Heading is empty for an unknown link type
+	Link     service.TaskLink
+	Other    *model.Task // the linked task
 }
 
 type linkState struct {
@@ -505,27 +501,24 @@ type linkState struct {
 	Error    string
 }
 
-// linkGroups returns the links of task tid, grouped by relation.
-func (w *Web) linkGroups(c *ctx, tid string) ([]linkGroup, error) {
+// linkItems returns the links of task tid, ordered by relation and then by
+// the other task.
+func (w *Web) linkItems(c *ctx, tid string) ([]linkItem, error) {
 	links, err := w.svc.Links(c.me.ID, tid)
 	if err != nil {
 		return nil, err
 	}
-	var groups []linkGroup
+	var items []linkItem
 	for _, l := range links {
-		if len(groups) == 0 || groups[len(groups)-1].Relation.ID != l.Relation {
-			rel, _ := model.RelationByID(l.Relation)
-			rel.ID = l.Relation
-			groups = append(groups, linkGroup{Relation: rel})
-		}
+		rel, _ := model.RelationByID(l.Relation)
+		rel.ID = l.Relation
 		other, err := w.svc.Task(c.me.ID, l.Task)
 		if err != nil && !errors.Is(err, service.ErrNotFound) {
 			return nil, err
 		}
-		g := &groups[len(groups)-1]
-		g.Items = append(g.Items, linkItem{Link: l, Other: other})
+		items = append(items, linkItem{Relation: rel, Link: l, Other: other})
 	}
-	return groups, nil
+	return items, nil
 }
 
 func (w *Web) linkAdd(rw http.ResponseWriter, r *http.Request, c *ctx) error {

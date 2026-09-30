@@ -54,16 +54,15 @@
 {{end}}
 
 <h2 id="links">Links</h2>
-{{range $d.Links}}
-<h3 class="links">{{with .Relation.Heading}}{{.}}{{else}}<span class="unknown" title="Unknown link type; this DockIt does not recognize it">{{.Relation.ID}} ⚠</span>{{end}}</h3>
+{{with $d.Links}}
 <ul class="links">
-  {{$rel := .Relation}}
-  {{range .Items}}
+  {{range .}}
   <li{{if and .Other (eq .Other.State "complete")}} class="done"{{end}}>
-    <a href="/tasks/{{.Link.Task}}">{{.Link.Task}}</a>
-    {{with .Other}}{{.Title}} <span class="state">{{taskState .State}}</span>{{end}}
-    {{if and (canEdit $me) $rel.Heading}}
-    <form method="post" action="/tasks/{{$t.ID}}/links/{{$rel.ID}}/{{.Link.Task}}/delete" class="inline">
+    <span class="relation">{{with .Relation.Heading}}{{.}}{{else}}<span class="unknown" title="Unknown link type; this DockIt does not recognize it">{{.Relation.ID}} ⚠</span>{{end}}</span>
+    <a href="/tasks/{{.Link.Task}}">{{.Link.Task}}{{with .Other}} {{.Title}}{{end}}</a>
+    {{with .Other}}<span class="pill state-{{.State}}">{{taskState .State}}</span>{{end}}
+    {{if and (canEdit $me) .Relation.Heading}}
+    <form method="post" action="/tasks/{{$t.ID}}/links/{{.Relation.ID}}/{{.Link.Task}}/delete" class="inline">
       <input type="hidden" name="csrf" value="{{$.CSRF}}">
       <input type="hidden" name="submission" value="{{$.Submission}}">
       <button type="submit" class="link" title="Remove this link">Remove</button>
