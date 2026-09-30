@@ -12,7 +12,7 @@
 <header class="top">
   {{/* Only logged-in users see the version; strangers need not know it. */}}
   <div class="home">
-    <a class="brand" href="/" aria-label="DockIt"><svg class="brand-mark" viewBox="5 1 50 58" aria-hidden="true" focusable="false"><path class="logo-accent" d="M8 4H26A26 26 0 0 1 26 56H8Z" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/><g fill="currentColor" transform="translate(9 13) scale(0.56)">{{template "gavel"}}</g></svg>ock<span class="logo-accent">I</span>t</a>
+    <a class="brand" href="/" aria-label="DockIt"><svg class="brand-mark" viewBox="5 1 50 58" aria-hidden="true" focusable="false"><mask id="brand-knockout" maskUnits="userSpaceOnUse" x="0" y="0" width="60" height="60"><path d="M8 4H26A26 26 0 0 1 26 56H8Z" fill="#fff" stroke="#fff" stroke-width="6" stroke-linejoin="round"/><g fill="#000" transform="translate(9 13) scale(0.56)">{{template "gavel"}}</g></mask><rect class="logo-accent" width="60" height="60" fill="currentColor" mask="url(#brand-knockout)"/></svg>ock<span class="logo-accent">I</span>t</a>
     {{if .Me}}<span class="version" title="DockIt {{.Version}}, dataset format {{.Format}}">{{.Version}} · format {{.Format}}</span>{{end}}
   </div>
   {{if .Me}}
