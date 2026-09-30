@@ -359,3 +359,37 @@ func TestUpgradeCommand(t *testing.T) {
 		t.Errorf("upgrade of non-dataset: %+v", r)
 	}
 }
+
+func TestUpgradeCommandMinor(t *testing.T) {
+	if model.FormatCurrent.Minor == 0 {
+		t.Skip("no older minor of the current format")
+	}
+	older := model.Format{Major: model.FormatCurrent.Major, Minor: model.FormatCurrent.Minor - 1}
+	dir := initDataset(t)
+	setFormat(t, dir, older)
+
+	// A dataset with errors is refused and keeps its format, as serve does.
+	ghost := filepath.Join(dir, "users", "ghost.yaml")
+	if err := os.WriteFile(ghost, []byte("id: [\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := dockit(t, "", nil, "upgrade", dir)
+	if r.code != 1 || !strings.Contains(r.stdout, "ghost.yaml") || !strings.Contains(r.stdout, "was not upgraded") {
+		t.Errorf("upgrade of a broken dataset: %+v", r)
+	}
+	if m, _ := store.ReadMeta(dir); m.Version() != older {
+		t.Errorf("format on disk = %s, want %s", m.Version(), older)
+	}
+
+	// A clean one is updated.
+	if err := os.Remove(ghost); err != nil {
+		t.Fatal(err)
+	}
+	r = dockit(t, "", nil, "upgrade", dir)
+	if r.code != 0 || !strings.Contains(r.stdout, fmt.Sprintf("from format %s to %s", older, model.FormatCurrent)) {
+		t.Errorf("upgrade of a clean dataset: %+v", r)
+	}
+	if m, _ := store.ReadMeta(dir); m.Version() != model.FormatCurrent {
+		t.Errorf("format on disk = %s", m.Version())
+	}
+}

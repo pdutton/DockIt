@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/pdutton/DockIt/internal/index"
 	"github.com/pdutton/DockIt/internal/model"
 	"github.com/pdutton/DockIt/internal/store"
 )
@@ -28,6 +29,16 @@ var Migrations = map[int]Migration{
 // ErrCurrent is returned when the dataset is already in the target format.
 var ErrCurrent = errors.New("dataset is already in the current format")
 
+// LoadError is returned by Run when the dataset has errors.  Its format is
+// left unchanged.
+type LoadError struct {
+	Report *index.Report
+}
+
+func (e *LoadError) Error() string {
+	return fmt.Sprintf("dataset has %d errors; fix them, then run `dockit upgrade` again", e.Report.Errors())
+}
+
 // Result describes a completed upgrade.
 type Result struct {
 	From, To model.Format
@@ -35,6 +46,11 @@ type Result struct {
 
 // Run upgrades the dataset at root to format target using migrations.  It
 // takes the dataset lock and then calls Migrate.
+//
+// A dataset this build can already read, such as an older minor of the
+// current major, is loaded first, as `dockit serve` does, and one with errors
+// is refused with a *LoadError and left in its format.  An older major cannot
+// be loaded until it is migrated, so it is upgraded as it is.
 func Run(root string, target model.Format, migrations map[int]Migration) (*Result, error) {
 	s, err := store.OpenAnyFormat(root)
 	if err != nil {
@@ -50,6 +66,11 @@ func Run(root string, target model.Format, migrations map[int]Migration) (*Resul
 		return nil, &store.FormatError{Format: from}
 	case from.Major < model.FormatMin:
 		return nil, fmt.Errorf("dataset format %s is too old for this build to upgrade (oldest supported: %d)", from, model.FormatMin)
+	}
+	if store.CheckFormat(from) == nil {
+		if x, report := index.Load(root); x == nil || !report.OK() {
+			return nil, &LoadError{report}
+		}
 	}
 	if err := Migrate(s, target, migrations); err != nil {
 		return nil, err

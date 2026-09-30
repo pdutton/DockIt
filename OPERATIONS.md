@@ -94,7 +94,9 @@ copy.
 
 The first two numbers of a DockIt version are the dataset format it writes:
 DockIt 2.1.x writes format 2.1. A new minor format only adds to the dataset,
-so the upgrade just records the new number. A new major format rewrites
+so the upgrade just records the new number, once the dataset loads without
+errors; a dataset with errors keeps its format until they are fixed. A new
+major format rewrites
 records. A release that changes only the last number leaves the dataset alone.
 `dockit upgrade` does the same upgrade without starting DockIt.
 

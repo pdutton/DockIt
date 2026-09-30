@@ -145,8 +145,8 @@ created: 2026-09-26T21:54:43Z
   - newer major, or the same major with a newer minor: refuse to run.  This is what "portable between
     installs of sufficient version" means in practice.
   - same: load.
-  - same major, older minor: load; if the load is clean, `serve` writes the current format to
-    `dockit.yaml`.  A dataset with errors is refused and left as it was.
+  - same major, older minor: load; if the load is clean, `serve` or `dockit upgrade` writes the current
+    format to `dockit.yaml`.  A dataset with errors is refused and left as it was.
   - older major, from the oldest this build can upgrade: `serve` upgrades the dataset in place, then
     loads it.  Migrations run one major at a time, and `dockit.yaml` records each step as it completes,
     so a failed upgrade leaves the dataset in the last good format.  A migration accepts any minor of the
