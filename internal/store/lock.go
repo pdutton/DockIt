@@ -18,12 +18,15 @@ import (
 // LockFile is the name of the lock file in the dataset root.
 const LockFile = "dockit.lock"
 
-// LockInfo is the content of the lock file.
+// LockInfo is the content of the lock file.  BootID and PIDNamespace are
+// empty on platforms without them, and in locks written by older builds.
 type LockInfo struct {
-	Host     string    `yaml:"host"`
-	PID      int       `yaml:"pid"`
-	Started  time.Time `yaml:"started"`
-	Instance string    `yaml:"instance"`
+	Host         string    `yaml:"host"`
+	PID          int       `yaml:"pid"`
+	Started      time.Time `yaml:"started"`
+	Instance     string    `yaml:"instance"`
+	BootID       string    `yaml:"boot_id,omitempty"`
+	PIDNamespace string    `yaml:"pid_namespace,omitempty"`
 }
 
 // LockedError is returned when a dataset is already locked.  Info is nil if
@@ -52,12 +55,14 @@ type Lock struct {
 // AcquireLock creates the lock file in root.  It fails with *LockedError if
 // the file already exists.
 func AcquireLock(root string) (*Lock, error) {
-	host, _ := os.Hostname()
+	sys := thisSystem()
 	info := LockInfo{
-		Host:     host,
-		PID:      os.Getpid(),
-		Started:  model.Now(),
-		Instance: randomHex(16),
+		Host:         sys.host,
+		PID:          os.Getpid(),
+		Started:      model.Now(),
+		Instance:     randomHex(16),
+		BootID:       sys.bootID,
+		PIDNamespace: sys.pidNamespace,
 	}
 	data, err := yaml.Marshal(&info)
 	if err != nil {
@@ -126,6 +131,61 @@ func ReadLock(root string) (*LockInfo, []byte, error) {
 // responsible for confirming with the operator that no instance is running.
 func Unlock(root string) error {
 	return os.Remove(filepath.Join(root, LockFile))
+}
+
+// RemoveStaleLock removes the lock in root if the instance that took it can
+// no longer be running (see system.stale), and returns what the lock held.
+// It returns nil if there is no lock, or if DockIt cannot tell that it is
+// stale, in which case taking the lock fails as usual.
+//
+// Two instances starting at once could both find the same stale lock, and
+// the slower one could then remove the lock the faster one has just taken.
+// The per-write lock check catches that: the faster instance's writes fail
+// with ErrLockLost, and it never removes the other's lock.
+func RemoveStaleLock(root string) (*LockInfo, error) {
+	return thisSystem().removeStaleLock(root)
+}
+
+func (sys system) removeStaleLock(root string) (*LockInfo, error) {
+	info, _, err := ReadLock(root)
+	if err != nil || !sys.stale(info) {
+		return nil, nil
+	}
+	if err := Unlock(root); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	return info, nil
+}
+
+// system describes the running system, for telling whether a lock is stale.
+type system struct {
+	host         string
+	bootID       string
+	pidNamespace string
+	running      func(pid int) bool
+}
+
+func thisSystem() system {
+	host, _ := os.Hostname()
+	return system{host: host, bootID: bootID(), pidNamespace: pidNamespace(), running: processRunning}
+}
+
+// stale reports whether the instance that took a lock can no longer be
+// running: it took the lock on this host either before the current boot, or
+// in this boot and PID namespace from a process that has since gone.
+// Whatever cannot be told for sure is not stale: a lock from another host,
+// or without a boot ID (from Windows or an older build), or from another PID
+// namespace, such as another container or WSL distro.  A PID reused by an
+// unrelated process makes a lock look live, which errs on the safe side.
+func (sys system) stale(l *LockInfo) bool {
+	switch {
+	case l == nil || sys.bootID == "" || l.BootID == "" || l.Host == "" || l.Host != sys.host:
+		return false
+	case l.BootID != sys.bootID:
+		return true
+	default:
+		return sys.pidNamespace != "" && l.PIDNamespace == sys.pidNamespace && l.PID > 0 && !sys.running(l.PID)
+	}
 }
 
 func randomHex(n int) string {

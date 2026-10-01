@@ -68,6 +68,14 @@ type serveConfig struct {
 
 func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- string) error {
 	dir, listen, certFile, keyFile, devUser := cfg.dir, cfg.listen, cfg.certFile, cfg.keyFile, cfg.devUser
+	old, err := store.RemoveStaleLock(dir)
+	if err != nil {
+		return err
+	}
+	if old != nil {
+		log.Warn("removed a stale lock", "dataset", dir,
+			"host", old.Host, "pid", old.PID, "started", old.Started.Format(time.RFC3339))
+	}
 	svc, report, err := service.Open(dir, func(from, to model.Format) {
 		if from.Major < to.Major {
 			log.Info("dataset upgraded", "dataset", dir, "from", from.String(), "to", to.String())

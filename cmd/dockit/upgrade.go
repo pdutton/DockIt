@@ -3,8 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/pdutton/DockIt/internal/model"
+	"github.com/pdutton/DockIt/internal/store"
 	"github.com/pdutton/DockIt/internal/upgrade"
 )
 
@@ -16,6 +18,14 @@ func runUpgrade(e *env, args []string) error {
 	dir, err := dataDir(e, flags)
 	if err != nil {
 		return err
+	}
+	old, err := store.RemoveStaleLock(dir)
+	if err != nil {
+		return err
+	}
+	if old != nil {
+		fmt.Fprintf(e.stdout, "Removed a stale lock left by host %s, pid %d, started %s.\n",
+			old.Host, old.PID, old.Started.Format(time.RFC3339))
 	}
 	res, err := upgrade.Run(dir, model.FormatCurrent, upgrade.Migrations)
 	if errors.Is(err, upgrade.ErrCurrent) {
