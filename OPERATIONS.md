@@ -65,8 +65,19 @@ Run `dockit <command> -h` for a command's flags.
 ## Stale locks
 
 If DockIt is killed without releasing its lock, the next start refuses because
-the dataset is locked. Once you are sure no other instance is running, remove
-the lock (`-it` lets `unlock` ask you first):
+the dataset is locked.
+
+On Linux, `serve` and `upgrade` remove the lock themselves when they can tell
+it is stale: the same host took it before the last reboot, or took it since in
+the same PID namespace and that process has gone. They log
+`removed a stale lock` with the old lock's host, PID and start time. That
+lets a service manager such as systemd bring DockIt back after a crash or a
+power cut.
+
+A container usually gets a new host name and PID namespace on each run, so a
+stale lock from a killed container is not removed this way. Once you are sure
+no other instance is running, remove the lock (`-it` lets `unlock` ask you
+first):
 
 ```sh
 podman run --rm -it --userns=keep-id:uid=65532,gid=65532 -v $DOCKIT_DIR:/data:Z dockit unlock

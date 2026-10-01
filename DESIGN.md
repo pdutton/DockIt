@@ -364,9 +364,17 @@ files are deleted at startup, which is safe because the lock is held.
 
 - On startup, `serve` creates `dockit.lock` with create-exclusive semantics (`O_CREATE|O_EXCL`), which is
   an atomic operation on local filesystems and is not an OS locking API.  It writes the host name,
-  process ID, start time and a random instance ID into it.
+  process ID, start time and a random instance ID into it, and on Linux the kernel's boot ID and the
+  process's PID namespace.
 - If the file already exists, DockIt refuses to start and prints its contents.  The operator either
   stops the other instance or confirms it is gone and runs `dockit unlock`.
+- A lock that is provably stale is removed instead.  `serve` and `upgrade` first remove a lock that this
+  host took before the current boot (the boot IDs differ), or took in this boot and PID namespace from a
+  process that no longer exists, and log what they removed.  This lets a service manager restart DockIt
+  after a crash or a power cut.  Any other lock is refused as above: one from another host, one without
+  a boot ID (from Windows or an older build), or one from another PID namespace, such as another
+  container or WSL distro, which share the host name and boot ID but not PIDs.  The lock is runtime
+  state, not part of the dataset format.
 - On clean shutdown the lock file is removed.
 - Before each write, the store confirms the lock file still holds its own instance ID.  This is a cheap
   guard against an operator unlocking a dataset that is actually still in use.
