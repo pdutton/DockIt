@@ -1,0 +1,28 @@
+#!/bin/sh
+# postrm for the DockIt .deb.  Removing it, even with purge, never deletes
+# the dataset or the dockit user.
+set -e
+
+case "$1" in
+remove)
+	if [ -d /run/systemd/system ]; then
+		systemctl daemon-reload || true
+	fi
+	;;
+purge)
+	# Forget whether the service was enabled, and remove its symlinks.
+	if [ -x /usr/bin/deb-systemd-helper ]; then
+		deb-systemd-helper purge dockit.service >/dev/null || true
+	fi
+	if [ -d /run/systemd/system ]; then
+		systemctl daemon-reload || true
+	fi
+	cat <<'EOF'
+
+DockIt's dataset (/var/lib/dockit, unless you moved it) and the dockit user
+were kept.  Delete them yourself if you no longer need them.
+
+EOF
+	;;
+esac
+exit 0

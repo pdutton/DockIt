@@ -62,10 +62,26 @@ podman stop dockit
 cp -r $DOCKIT_DIR $DOCKIT_DIR.before-upgrade
 ```
 
+## Install the .deb package
+
+On Debian, Ubuntu and their derivatives, DockIt can run as a systemd service
+instead. Install the package from a
+[release](https://github.com/pdutton/DockIt/releases), create the dataset as
+the `dockit` user, noting the one-time password, and start DockIt:
+
+```sh
+sudo apt install ./dockit_2.2.7_amd64.deb
+sudo -u dockit dockit init -admin pdutton -name "Peter Dutton" -email peter@example.com /var/lib/dockit
+sudo systemctl start dockit
+```
+
+Its settings are in `/etc/dockit/dockit.conf`. To upgrade, and for the rest,
+see [Running as a systemd service](OPERATIONS.md#running-as-a-systemd-service).
+
 ## More
 
 - [OPERATIONS.md](OPERATIONS.md): settings, named volumes, running as a
   systemd service, restore, stale locks, and caring for your data.
-- [TESTING.md](TESTING.md): running DockIt without a container, and
-  developing it.
+- [TESTING.md](TESTING.md): running DockIt without a container, developing
+  it, and building the .deb packages.
 - [DESIGN.md](DESIGN.md): architecture, dataset format, and the REST API.

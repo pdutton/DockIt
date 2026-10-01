@@ -41,3 +41,6 @@ go.work.sum
 *.un~
 Session.vim
 .netrwhist
+
+# Packages built by packaging/build-deb.sh
+/dist/

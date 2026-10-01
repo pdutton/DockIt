@@ -1,0 +1,77 @@
+#!/bin/sh
+# postinst for the DockIt .deb.  dpkg runs it with "configure" after
+# installing or upgrading, and with "abort-*" to undo a failed step.
+set -e
+
+case "$1" in
+configure | abort-upgrade | abort-deconfigure | abort-remove) ;;
+*) exit 0 ;;
+esac
+
+# The dockit user and group, and /var/lib/dockit, from the package's
+# sysusers.d and tmpfiles.d files.  Neither changes what already exists.
+systemd-sysusers dockit.conf
+systemd-tmpfiles --create dockit.conf
+
+# Enable the service on the first install.  After that, deb-systemd-helper
+# remembers whether it was enabled, so an upgrade keeps the admin's choice.
+if deb-systemd-helper --quiet was-enabled dockit.service; then
+	deb-systemd-helper enable dockit.service >/dev/null || true
+else
+	deb-systemd-helper update-state dockit.service >/dev/null || true
+fi
+
+# systemd may not be running, as in a container or a chroot.
+running=
+if [ -d /run/systemd/system ]; then
+	running=yes
+	systemctl daemon-reload || true
+fi
+
+if [ "$1" = configure ] && [ -z "$2" ]; then
+	# The first install, or the first since a purge.  Leave DockIt stopped:
+	# it needs a dataset first, or the admin may want to look at the one an
+	# earlier install left.
+	if [ -e /var/lib/dockit/dockit.yaml ]; then
+		cat <<'EOF'
+
+DockIt is installed, and starts at boot.  /var/lib/dockit already holds a
+dataset; start DockIt with
+
+  sudo systemctl start dockit
+
+EOF
+	else
+		cat <<'EOF'
+
+DockIt is installed, and starts at boot.  First create its dataset as the
+dockit user, and note the one-time password this prints:
+
+  sudo -u dockit dockit init -admin <user> -name "<full name>" -email <address> /var/lib/dockit
+
+Then start DockIt:
+
+  sudo systemctl start dockit
+
+By default it listens on localhost:8080.  Change that, and the other
+settings, in /etc/dockit/dockit.conf.
+
+EOF
+	fi
+elif [ "$running" ]; then
+	# An upgrade: restart DockIt so the new version runs, unless the admin
+	# disabled and stopped it, or /usr/sbin/policy-rc.d forbids it; both say
+	# so.  DockIt upgrades the dataset as it starts.
+	if ! deb-systemd-invoke restart dockit.service; then
+		cat <<'EOF'
+
+DockIt did not start after the upgrade.  Find out why with
+
+  journalctl -u dockit
+
+then fix it and run `sudo systemctl start dockit`.
+
+EOF
+	fi
+fi
+exit 0
