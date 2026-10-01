@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -242,7 +243,7 @@ func TestServe(t *testing.T) {
 	}
 
 	// While serving, the dataset is locked.
-	if r := dockit(t, "", nil, "serve", "-listen", "127.0.0.1:0", dir); r.code != 1 || !strings.Contains(r.stderr, "locked") {
+	if r := dockit(t, "", nil, "serve", "-listen", "127.0.0.1:0", dir); r.code != exitConfig || !strings.Contains(r.stderr, "locked") {
 		t.Errorf("second serve: %+v", r)
 	}
 
@@ -340,12 +341,28 @@ func TestServeFlags(t *testing.T) {
 		{[]string{"-dev-insecure-user", "ghost", "-listen", "localhost:0"}, "not an active user"},
 	} {
 		r := dockit(t, "", nil, append(append([]string{"serve"}, tc.args...), dir)...)
-		if r.code != 1 || !strings.Contains(r.stderr, tc.msg) {
+		if r.code != exitConfig || !strings.Contains(r.stderr, tc.msg) {
 			t.Errorf("%v: %+v", tc.args, r)
 		}
 	}
-	if r := dockit(t, "", nil, "serve", t.TempDir()); r.code != 1 || !strings.Contains(r.stderr, "not a DockIt dataset") {
+	if r := dockit(t, "", nil, "serve", t.TempDir()); r.code != exitConfig || !strings.Contains(r.stderr, "not a DockIt dataset") {
 		t.Errorf("serve on non-dataset: %+v", r)
+	}
+}
+
+// A port in use may come free, so failing to listen is not a configError.
+func TestServeListenFails(t *testing.T) {
+	dir := initDataset(t)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	if r := dockit(t, "", nil, "serve", "-listen", ln.Addr().String(), dir); r.code != 1 {
+		t.Errorf("serve on a port in use: %+v", r)
+	}
+	if _, err := os.Stat(filepath.Join(dir, store.LockFile)); !os.IsNotExist(err) {
+		t.Error("lock not released after failing to listen")
 	}
 }
 

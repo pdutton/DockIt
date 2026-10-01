@@ -64,8 +64,8 @@ cp -r $DOCKIT_DIR $DOCKIT_DIR.before-upgrade
 
 ## More
 
-- [OPERATIONS.md](OPERATIONS.md): settings, named volumes, restore, stale
-  locks, and caring for your data.
+- [OPERATIONS.md](OPERATIONS.md): settings, named volumes, running as a
+  systemd service, restore, stale locks, and caring for your data.
 - [TESTING.md](TESTING.md): running DockIt without a container, and
   developing it.
 - [DESIGN.md](DESIGN.md): architecture, dataset format, and the REST API.

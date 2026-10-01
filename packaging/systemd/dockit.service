@@ -1,0 +1,60 @@
+# DockIt as a systemd service.  See "Running as a systemd service" in
+# OPERATIONS.md.  Change settings in /etc/dockit/dockit.conf, and anything
+# here with `systemctl edit dockit`.
+
+[Unit]
+Description=DockIt task tracker
+Documentation=https://github.com/pdutton/DockIt/blob/master/OPERATIONS.md
+Wants=network-online.target
+After=network-online.target remote-fs.target
+
+[Service]
+Type=exec
+User=dockit
+Group=dockit
+EnvironmentFile=/etc/dockit/dockit.conf
+ExecStart=/usr/bin/dockit serve
+# serve exits 78 when it cannot start until its settings or dataset are fixed:
+# before `dockit init`, with dataset errors, or while another instance holds
+# the lock.  Restarting would not help.  After a crash it is restarted, and
+# removes the stale lock it left.
+Restart=on-failure
+RestartPreventExitStatus=78
+# serve shuts down within 10 seconds of SIGTERM, inside systemd's default
+# stop timeout of 90.
+
+# The default dataset directory.  A dataset anywhere else also needs
+# ReadWritePaths=.
+StateDirectory=dockit
+StateDirectoryMode=0750
+
+# Sandboxing: DockIt can write only to its dataset, and cannot see home
+# directories, devices or other users' processes.  Not ProcSubset=pid or
+# PrivatePIDs=: removing a stale lock needs the boot ID from /proc/sys, and
+# the PID namespace to stay the same across restarts.
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectProc=invisible
+ProtectHostname=yes
+ProtectClock=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

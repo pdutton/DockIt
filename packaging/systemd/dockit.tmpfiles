@@ -1,0 +1,3 @@
+# The default dataset directory, made before the service first starts so that
+# `dockit init` can run in it as the dockit user.
+d /var/lib/dockit 0750 dockit dockit -

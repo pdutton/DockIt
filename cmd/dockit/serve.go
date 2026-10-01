@@ -43,10 +43,10 @@ func runServe(e *env, args []string) error {
 		return err
 	}
 	if (*certFile == "") != (*keyFile == "") {
-		return errors.New("-tls-cert and -tls-key must be given together")
+		return configError{errors.New("-tls-cert and -tls-key must be given together")}
 	}
 	if *devUser != "" && !isLoopback(*listen) {
-		return fmt.Errorf("-dev-insecure-user requires a localhost -listen address, not %q", *listen)
+		return configError{fmt.Errorf("-dev-insecure-user requires a localhost -listen address, not %q", *listen)}
 	}
 
 	log := slog.New(slog.NewTextHandler(e.stderr, nil))
@@ -58,7 +58,9 @@ func runServe(e *env, args []string) error {
 }
 
 // serve runs the server until ctx is done.  If ready is not nil, the bound
-// address is sent on it once the server is listening.
+// address is sent on it once the server is listening.  An error that stops it
+// starting, other than failing to listen, is a configError: retrying will not
+// help until someone fixes the settings or the dataset.
 type serveConfig struct {
 	dir, listen       string
 	certFile, keyFile string
@@ -70,7 +72,7 @@ func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- 
 	dir, listen, certFile, keyFile, devUser := cfg.dir, cfg.listen, cfg.certFile, cfg.keyFile, cfg.devUser
 	old, err := store.RemoveStaleLock(dir)
 	if err != nil {
-		return err
+		return configError{err}
 	}
 	if old != nil {
 		log.Warn("removed a stale lock", "dataset", dir,
@@ -93,7 +95,7 @@ func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- 
 				"If that instance is not running, run `dockit unlock` and start again",
 				le.Info.Host, le.Info.PID, le.Info.Started.Format(time.RFC3339))
 		}
-		return errors.New(msg)
+		return configError{errors.New(msg)}
 	case err != nil:
 		if report != nil {
 			for _, p := range report.Problems {
@@ -102,7 +104,7 @@ func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- 
 				}
 			}
 		}
-		return err
+		return configError{err}
 	}
 	defer func() {
 		if err := svc.Close(); err != nil {
@@ -115,7 +117,7 @@ func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- 
 
 	if devUser != "" {
 		if _, err := svc.User(devUser, devUser); err != nil {
-			return fmt.Errorf("-dev-insecure-user %q is not an active user", devUser)
+			return configError{fmt.Errorf("-dev-insecure-user %q is not an active user", devUser)}
 		}
 		log.Warn("INSECURE: authentication is disabled; every request acts as " + devUser)
 	}
