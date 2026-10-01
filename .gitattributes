@@ -2,3 +2,5 @@
 *.go   text eol=lf
 go.mod text eol=lf
 go.sum text eol=lf
+# systemd and sh read packaging files literally, so a CR would end up in values.
+packaging/** text eol=lf

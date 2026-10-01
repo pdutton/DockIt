@@ -614,6 +614,11 @@ Enforced in the service layer, identically for both interfaces:
 
 Commands other than `serve` that modify the dataset (`init`, `upgrade`) take the same lock.
 
+`serve` exits with status 78 (`EX_CONFIG` from `sysexits.h`) when it cannot start until an operator fixes
+its settings or the dataset: no dataset yet, dataset errors, a newer format, or a lock it may not remove.
+A service manager should not restart it then, and the systemd unit (`packaging/systemd/dockit.service`)
+does not.  Failing to listen exits 1, because a port in use may come free.
+
 ## Miscellaneous Rules
 
 All datetimes must be stored in UTC in a machine friendly timestamp format (RFC 3339, `Z` suffix).

@@ -55,6 +55,16 @@ var errUsage = errors.New("usage")
 // errSilent means the command failed and has already said why.
 var errSilent = errors.New("failed")
 
+// exitConfig is the exit status of a command that cannot run until its
+// settings or dataset are fixed, so running it again will not help.  It is
+// EX_CONFIG from sysexits.h; the systemd unit does not restart serve after it.
+const exitConfig = 78
+
+// configError marks an error that makes the command exit with exitConfig.
+type configError struct{ error }
+
+func (e configError) Unwrap() error { return e.error }
+
 func run(e *env, args []string) int {
 	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
 		usage(e.stderr)
@@ -72,6 +82,9 @@ func run(e *env, args []string) int {
 				return 1
 			default:
 				fmt.Fprintf(e.stderr, "dockit %s: %v\n", c.name, err)
+				if errors.As(err, new(configError)) {
+					return exitConfig
+				}
 				return 1
 			}
 		}

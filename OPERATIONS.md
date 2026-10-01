@@ -1,7 +1,9 @@
 # Operating DockIt
 
 Reference for running DockIt beyond the quick start in [README.md](README.md).
-The examples use rootless podman; docker works the same way.
+The examples use rootless podman; docker works the same way. To run DockIt
+without a container, see
+[Running as a systemd service](#running-as-a-systemd-service).
 
 ## The container image
 
@@ -42,7 +44,8 @@ argument, or reads it from `$DOCKIT_DATA` if none is given. `serve` also takes:
 | `-base-url`          | `DOCKIT_BASE_URL` |                  | The URL people use to reach DockIt, such as `https://dockit.example.com`. An `https` URL marks the login cookie Secure; set it when a proxy terminates TLS. |
 | `-dev-insecure-user` |                   |                  | Development only: no authentication; every request acts as this user. Refuses to start unless listening on localhost. |
 
-In a container, pass them as `-e` settings. The image sets two of them:
+For the systemd service, set them in `/etc/dockit/dockit.conf`. In a
+container, pass them as `-e` settings. The image sets two of them:
 
 | Environment       | Image value | Why                                                |
 |-------------------|-------------|----------------------------------------------------|
@@ -61,6 +64,11 @@ In a container, pass them as `-e` settings. The image sets two of them:
 | `dockit version` | Print the build version and the dataset format it supports.      |
 
 Run `dockit <command> -h` for a command's flags.
+
+`serve` exits with status 78 when it cannot start until its settings or the
+dataset are fixed: before `init`, when the dataset has errors, or while another
+instance holds the lock. Other errors exit with status 1, and mistakes on the
+command line with 2.
 
 ## Stale locks
 
@@ -86,7 +94,8 @@ podman run --rm -it --userns=keep-id:uid=65532,gid=65532 -v $DOCKIT_DIR:/data:Z 
 ## Upgrading
 
 A new version of DockIt upgrades the dataset when `serve` starts, in place,
-and logs the change (`podman logs dockit`):
+and logs the change (`podman logs dockit`, or `journalctl -u dockit` for the
+systemd service):
 
 ```
 level=INFO msg="dataset format updated" dataset=/data from=2.0 to=2.1
@@ -159,6 +168,80 @@ podman stop dockit
 podman run --rm -d --name dockit --stop-timeout 15 -p 8080:8080 -v dockit-data:/data dockit
 podman run --rm -v dockit-data:/data dockit check
 ```
+
+## Running as a systemd service
+
+`packaging/` holds the files to run DockIt as a systemd service, without a
+container:
+
+| File                                | Install as                           | Purpose                                     |
+|-------------------------------------|--------------------------------------|---------------------------------------------|
+| `packaging/systemd/dockit.service`  | `/etc/systemd/system/dockit.service` | Runs `dockit serve` as the `dockit` user, sandboxed |
+| `packaging/dockit.conf`             | `/etc/dockit/dockit.conf`            | The [settings](#settings), as `DOCKIT_*` variables |
+| `packaging/systemd/dockit.sysusers` | `/etc/sysusers.d/dockit.conf`        | Creates the `dockit` user and group         |
+| `packaging/systemd/dockit.tmpfiles` | `/etc/tmpfiles.d/dockit.conf`        | Creates the dataset directory, `/var/lib/dockit` |
+
+Build `dockit` as in [TESTING.md](TESTING.md#build-and-test). Then, from the
+repository, install it and the files, and create the user and the directory:
+
+```sh
+sudo install -m 0755 dockit /usr/bin/dockit
+sudo install -D -m 0644 packaging/systemd/dockit.service /etc/systemd/system/dockit.service
+sudo install -D -m 0644 packaging/dockit.conf /etc/dockit/dockit.conf
+sudo install -D -m 0644 packaging/systemd/dockit.sysusers /etc/sysusers.d/dockit.conf
+sudo install -D -m 0644 packaging/systemd/dockit.tmpfiles /etc/tmpfiles.d/dockit.conf
+sudo systemd-sysusers /etc/sysusers.d/dockit.conf
+sudo systemd-tmpfiles --create /etc/tmpfiles.d/dockit.conf
+sudo systemctl daemon-reload
+```
+
+DockIt listens on `localhost:8080`; change that, and any other setting, in
+`/etc/dockit/dockit.conf`. Create the dataset as the `dockit` user, so that
+user owns the files, and note the one-time password:
+
+```sh
+sudo -u dockit dockit init -admin pdutton -name "Peter Dutton" -email peter@example.com /var/lib/dockit
+```
+
+Start DockIt, now and at every boot:
+
+```sh
+sudo systemctl enable --now dockit
+```
+
+- `systemctl status dockit` shows whether DockIt is running, and
+  `journalctl -u dockit` shows its log.
+- `systemctl stop dockit` shuts DockIt down cleanly, releasing the lock.
+- After a crash, systemd restarts DockIt, which removes the lock the crash
+  left behind (see [Stale locks](#stale-locks)).
+- When `serve` cannot start until something is fixed, such as before `init`,
+  it exits with status 78 (`status=78/CONFIG` in the log) and systemd does not
+  restart it. Fix what the log says, then `systemctl start dockit`.
+- Run the other commands as `dockit` too, such as
+  `sudo -u dockit dockit check /var/lib/dockit`.
+
+To upgrade, stop DockIt, copy the dataset (see [Upgrading](#upgrading)),
+install the new binary, and start it again:
+
+```sh
+sudo systemctl stop dockit
+sudo cp -a /var/lib/dockit /var/lib/dockit.before-upgrade
+sudo install -m 0755 dockit /usr/bin/dockit
+sudo systemctl start dockit
+```
+
+The service can write only to its dataset directory, and cannot see home
+directories. To keep the dataset somewhere else, create the directory owned
+by `dockit`, set `DOCKIT_DATA`, and let the service write there with
+`sudo systemctl edit dockit`:
+
+```ini
+[Service]
+ReadWritePaths=/srv/dockit
+```
+
+To listen on a port below 1024, add `AmbientCapabilities=CAP_NET_BIND_SERVICE`
+and `CapabilityBoundingSet=CAP_NET_BIND_SERVICE` the same way.
 
 ## The REST API
 
