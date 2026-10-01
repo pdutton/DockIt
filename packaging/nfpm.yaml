@@ -1,0 +1,64 @@
+# nFPM configuration for DockIt's .deb package.  packaging/build-deb.sh builds
+# the binary and runs nFPM with this file once per architecture, setting
+# DOCKIT_ARCH and DOCKIT_PKG_VERSION.  Paths are relative to the repository.
+name: dockit
+arch: ${DOCKIT_ARCH}
+platform: linux
+version: ${DOCKIT_PKG_VERSION}
+# build-deb.sh makes the version a valid Debian one; use it unchanged.
+version_schema: none
+section: web
+priority: optional
+maintainer: Peter Dutton <pdutton0@gmail.com>
+homepage: https://github.com/pdutton/DockIt
+description: |-
+  Simple to-do list tracker
+  DockIt tracks tasks across projects, who owns each one, its state and
+  priority, and the discussion around it, through a web page and a REST API.
+  Its data is a directory of YAML files.  The package runs DockIt as a
+  systemd service.
+
+# The maintainer scripts use systemd-sysusers, systemd-tmpfiles and
+# deb-systemd-helper.
+depends:
+  - systemd
+  - init-system-helpers
+
+# Modes are set here, not read from the files, so that a build on Windows
+# makes the same package.
+contents:
+  - src: dist/${DOCKIT_ARCH}/dockit
+    dst: /usr/bin/dockit
+    expand: true
+    file_info:
+      mode: 0755
+  - src: packaging/systemd/dockit.service
+    dst: /usr/lib/systemd/system/dockit.service
+    file_info:
+      mode: 0644
+  - src: packaging/systemd/dockit.sysusers
+    dst: /usr/lib/sysusers.d/dockit.conf
+    file_info:
+      mode: 0644
+  - src: packaging/systemd/dockit.tmpfiles
+    dst: /usr/lib/tmpfiles.d/dockit.conf
+    file_info:
+      mode: 0644
+  # A conffile: dpkg keeps local changes across upgrades.
+  - src: packaging/dockit.conf
+    dst: /etc/dockit/dockit.conf
+    type: config
+    file_info:
+      mode: 0644
+  - src: LICENSE
+    dst: /usr/share/doc/dockit/copyright
+    file_info:
+      mode: 0644
+
+scripts:
+  postinstall: packaging/deb/postinst
+  preremove: packaging/deb/prerm
+  postremove: packaging/deb/postrm
+
+deb:
+  compression: xz

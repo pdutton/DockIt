@@ -22,6 +22,26 @@ patch release. See [DESIGN.md](DESIGN.md#dataset-metadata-and-versioning).
 Or install the latest release with
 `go install github.com/pdutton/DockIt/cmd/dockit@latest`.
 
+## Build the .deb packages
+
+`packaging/build-deb.sh` builds `dockit` for Linux and packages it, with the
+files in `packaging/`, as `dist/dockit_<version>_amd64.deb` and
+`dist/dockit_<version>_arm64.deb`. It needs only a POSIX shell (Git Bash on
+Windows) and Go: it runs [nFPM](https://nfpm.goreleaser.com/), whose
+configuration is `packaging/nfpm.yaml`, with `go run`. nFPM needs Go 1.26.4 or
+later; an older Go fetches a newer toolchain itself.
+
+```sh
+packaging/build-deb.sh
+```
+
+The version comes from `git describe`, as above, or from the first argument.
+Release v2.2.7 makes package version 2.2.7. A build after a tag, or from a
+changed tree, makes a version that apt orders between the two releases, such
+as 2.2.7+3.gabc1234.dirty. For a release, run it in a clean checkout of the
+tag and attach both packages to the GitHub release. OPERATIONS.md describes
+what the package does.
+
 ## Run it locally
 
 Create a dataset in a missing or empty directory, and note the one-time

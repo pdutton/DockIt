@@ -5,10 +5,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // leaveStaleLock writes a lock that this host took before the current boot,
@@ -61,5 +64,70 @@ func TestUpgradeRemovesStaleLock(t *testing.T) {
 	if r.code != 0 || !strings.Contains(r.stdout, "Removed a stale lock left by host ") ||
 		!strings.Contains(r.stdout, "pid 4242, started 2026-09-26T21:54:43Z.") || !strings.Contains(r.stdout, "nothing to do") {
 		t.Errorf("upgrade over a stale lock: %+v", r)
+	}
+}
+
+func TestServeNotifiesSystemd(t *testing.T) {
+	dir := initDataset(t)
+	sock := filepath.Join(t.TempDir(), "notify")
+	conn, err := net.ListenUnixgram("unixgram", &net.UnixAddr{Name: sock, Net: "unixgram"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ready := make(chan string, 1)
+	done := make(chan error, 1)
+	go func() {
+		done <- serve(ctx, slog.New(slog.DiscardHandler), serveConfig{dir: dir, listen: "127.0.0.1:0", notifySocket: sock}, ready)
+	}()
+	select {
+	case <-ready:
+	case err := <-done:
+		t.Fatalf("serve exited: %v", err)
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Errorf("serve returned %v", err)
+	}
+
+	var got []string
+	buf := make([]byte, 64)
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for range 2 {
+		n, err := conn.Read(buf)
+		if err != nil {
+			t.Fatalf("after %q: %v", got, err)
+		}
+		got = append(got, string(buf[:n]))
+	}
+	if want := []string{"READY=1", "STOPPING=1"}; !slices.Equal(got, want) {
+		t.Errorf("sent %q, want %q", got, want)
+	}
+}
+
+// A socket that cannot be reached is logged, and serve carries on.
+func TestServeNotifyFails(t *testing.T) {
+	dir := initDataset(t)
+	var logBuf bytes.Buffer
+	ctx, cancel := context.WithCancel(context.Background())
+	ready := make(chan string, 1)
+	done := make(chan error, 1)
+	go func() {
+		done <- serve(ctx, slog.New(slog.NewTextHandler(&logBuf, nil)),
+			serveConfig{dir: dir, listen: "127.0.0.1:0", notifySocket: filepath.Join(t.TempDir(), "missing")}, ready)
+	}()
+	select {
+	case <-ready:
+	case err := <-done:
+		t.Fatalf("serve exited: %v", err)
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Errorf("serve returned %v", err)
+	}
+	if log := logBuf.String(); !strings.Contains(log, `level=WARN msg="telling systemd DockIt is ready"`) {
+		t.Errorf("failure to notify not logged:\n%s", log)
 	}
 }

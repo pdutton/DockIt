@@ -54,6 +54,7 @@ func runServe(e *env, args []string) error {
 	defer stop()
 	return serve(ctx, log, serveConfig{
 		dir: dir, listen: *listen, certFile: *certFile, keyFile: *keyFile, devUser: *devUser, baseURL: *baseURL,
+		notifySocket: e.getenv("NOTIFY_SOCKET"),
 	}, nil)
 }
 
@@ -61,11 +62,16 @@ func runServe(e *env, args []string) error {
 // address is sent on it once the server is listening.  An error that stops it
 // starting, other than failing to listen, is a configError: retrying will not
 // help until someone fixes the settings or the dataset.
+//
+// Under systemd, notifySocket is $NOTIFY_SOCKET, and serve tells systemd once
+// it is listening, so `systemctl start` waits for that and reports a failure
+// to start.
 type serveConfig struct {
 	dir, listen       string
 	certFile, keyFile string
 	devUser           string
 	baseURL           string
+	notifySocket      string
 }
 
 func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- string) error {
@@ -152,6 +158,9 @@ func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- 
 		scheme = "https"
 	}
 	log.Info("DockIt serving", "dataset", dir, "url", scheme+"://"+ln.Addr().String()+"/")
+	if err := sdNotify(cfg.notifySocket, "READY=1"); err != nil {
+		log.Warn("telling systemd DockIt is ready", "err", err)
+	}
 	if ready != nil {
 		ready <- ln.Addr().String()
 	}
@@ -171,6 +180,9 @@ func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- 
 	case <-ctx.Done():
 	}
 	log.Info("shutting down")
+	if err := sdNotify(cfg.notifySocket, "STOPPING=1"); err != nil {
+		log.Warn("telling systemd DockIt is stopping", "err", err)
+	}
 	sctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	if err := srv.Shutdown(sctx); err != nil {

@@ -9,7 +9,9 @@ Wants=network-online.target
 After=network-online.target remote-fs.target
 
 [Service]
-Type=exec
+# serve tells systemd once it is listening, so `systemctl start` waits for
+# that, and fails if serve cannot start.
+Type=notify
 User=dockit
 Group=dockit
 EnvironmentFile=/etc/dockit/dockit.conf

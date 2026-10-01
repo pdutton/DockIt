@@ -2,7 +2,7 @@
 
 Reference for running DockIt beyond the quick start in [README.md](README.md).
 The examples use rootless podman; docker works the same way. To run DockIt
-without a container, see
+without a container, from the .deb package or by hand, see
 [Running as a systemd service](#running-as-a-systemd-service).
 
 ## The container image
@@ -109,8 +109,8 @@ cp -r $DOCKIT_DIR $DOCKIT_DIR.before-upgrade
 ```
 
 Run `check` after upgrading, and remove the copy once you are happy with the
-result. If the upgrade fails, or you go back to the older image, restore the
-copy.
+result. If the upgrade fails, or you go back to the older image or package,
+restore the copy.
 
 The first two numbers of a DockIt version are the dataset format it writes:
 DockIt 2.1.x writes format 2.1. A new minor format only adds to the dataset,
@@ -171,8 +171,62 @@ podman run --rm -v dockit-data:/data dockit check
 
 ## Running as a systemd service
 
-`packaging/` holds the files to run DockIt as a systemd service, without a
-container:
+DockIt can run as a systemd service, without a container. On Debian, Ubuntu
+and their derivatives, install the .deb package; elsewhere, install the files
+by hand. Either way, DockIt runs as the `dockit` user, keeps its dataset in
+`/var/lib/dockit`, reads its [settings](#settings) from
+`/etc/dockit/dockit.conf`, and logs to the journal.
+
+### The .deb package
+
+Download `dockit_<version>_amd64.deb`, or `_arm64.deb`, from the
+[GitHub releases](https://github.com/pdutton/DockIt/releases), or build it as
+in [TESTING.md](TESTING.md#build-the-deb-packages), and install it:
+
+```sh
+sudo apt install ./dockit_2.2.7_amd64.deb
+```
+
+That installs `dockit` and the service, creates the `dockit` user and
+`/var/lib/dockit`, and enables the service so that it starts at boot, but
+does not start it yet. Create the dataset as the `dockit` user, so that user
+owns the files, and note the one-time password. Then start DockIt:
+
+```sh
+sudo -u dockit dockit init -admin pdutton -name "Peter Dutton" -email peter@example.com /var/lib/dockit
+sudo systemctl start dockit
+```
+
+DockIt listens on `localhost:8080`. Change that, and any other setting, in
+`/etc/dockit/dockit.conf`, then run `sudo systemctl restart dockit`. Upgrades
+keep your changes to that file.
+
+To upgrade, stop DockIt, copy the dataset (see [Upgrading](#upgrading)), and
+install the new package:
+
+```sh
+sudo systemctl stop dockit
+sudo cp -a /var/lib/dockit /var/lib/dockit.before-upgrade
+sudo apt install ./dockit_2.2.8_amd64.deb
+```
+
+Installing a new version starts DockIt again, or restarts it if it is
+running, and DockIt upgrades the dataset as it starts. If DockIt fails to
+start, apt says so, and `journalctl -u dockit` shows why. The package leaves
+DockIt stopped if you disabled it (`systemctl disable dockit`), or if
+`/usr/sbin/policy-rc.d` forbids starting services, as it does in some
+container and WSL images.
+
+`sudo apt remove dockit` stops DockIt and removes it, but keeps
+`/etc/dockit/dockit.conf`. `sudo apt purge dockit` removes that too. Neither
+removes the dataset or the `dockit` user.
+
+If you installed DockIt by hand before, first remove the unit, sysusers.d and
+tmpfiles.d files you installed under `/etc`, which would hide the package's.
+
+### Installing by hand
+
+`packaging/` holds the files the package installs:
 
 | File                                | Install as                           | Purpose                                     |
 |-------------------------------------|--------------------------------------|---------------------------------------------|
@@ -209,17 +263,6 @@ Start DockIt, now and at every boot:
 sudo systemctl enable --now dockit
 ```
 
-- `systemctl status dockit` shows whether DockIt is running, and
-  `journalctl -u dockit` shows its log.
-- `systemctl stop dockit` shuts DockIt down cleanly, releasing the lock.
-- After a crash, systemd restarts DockIt, which removes the lock the crash
-  left behind (see [Stale locks](#stale-locks)).
-- When `serve` cannot start until something is fixed, such as before `init`,
-  it exits with status 78 (`status=78/CONFIG` in the log) and systemd does not
-  restart it. Fix what the log says, then `systemctl start dockit`.
-- Run the other commands as `dockit` too, such as
-  `sudo -u dockit dockit check /var/lib/dockit`.
-
 To upgrade, stop DockIt, copy the dataset (see [Upgrading](#upgrading)),
 install the new binary, and start it again:
 
@@ -229,6 +272,21 @@ sudo cp -a /var/lib/dockit /var/lib/dockit.before-upgrade
 sudo install -m 0755 dockit /usr/bin/dockit
 sudo systemctl start dockit
 ```
+
+### Managing the service
+
+- `systemctl status dockit` shows whether DockIt is running, and
+  `journalctl -u dockit` shows its log.
+- `systemctl start dockit` waits until DockIt is listening, and fails if it
+  cannot start.
+- `systemctl stop dockit` shuts DockIt down cleanly, releasing the lock.
+- After a crash, systemd restarts DockIt, which removes the lock the crash
+  left behind (see [Stale locks](#stale-locks)).
+- When `serve` cannot start until something is fixed, such as before `init`,
+  it exits with status 78 (`status=78/CONFIG` in the log) and systemd does not
+  restart it. Fix what the log says, then `systemctl start dockit`.
+- Run the other commands as `dockit` too, such as
+  `sudo -u dockit dockit check /var/lib/dockit`.
 
 The service can write only to its dataset directory, and cannot see home
 directories. To keep the dataset somewhere else, create the directory owned
