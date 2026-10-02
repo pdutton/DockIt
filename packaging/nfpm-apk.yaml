@@ -1,0 +1,53 @@
+# nFPM configuration for DockIt's APK package, for Alpine Linux.
+# packaging/build-apk.sh builds the binary and runs nFPM with this file once
+# per architecture, setting DOCKIT_ARCH and DOCKIT_PKG_VERSION.  Paths are
+# relative to the repository.
+name: dockit
+arch: ${DOCKIT_ARCH}
+platform: linux
+version: ${DOCKIT_PKG_VERSION}
+# build-apk.sh makes the version a valid Alpine one; use it unchanged.
+version_schema: none
+release: "0"
+maintainer: Peter Dutton <pdutton0@gmail.com>
+homepage: https://github.com/pdutton/DockIt
+# An APK description is one line.
+description: Simple to-do list tracker
+
+# Modes are set here, not read from the files, so that a build on Windows
+# makes the same package.  apk keeps local changes to files in /etc across
+# upgrades, and writes the new version beside them as .apk-new.
+contents:
+  - src: dist/${DOCKIT_ARCH}/dockit
+    dst: /usr/bin/dockit
+    expand: true
+    file_info:
+      mode: 0755
+  - src: packaging/openrc/dockit.initd
+    dst: /etc/init.d/dockit
+    file_info:
+      mode: 0755
+  - src: packaging/openrc/dockit.confd
+    dst: /etc/conf.d/dockit
+    type: config
+    file_info:
+      mode: 0644
+  - src: packaging/openrc/dockit.logrotate
+    dst: /etc/logrotate.d/dockit
+    type: config
+    file_info:
+      mode: 0644
+  - src: LICENSE
+    dst: /usr/share/licenses/dockit/LICENSE
+    file_info:
+      mode: 0644
+
+scripts:
+  preinstall: packaging/apk/pre-install
+  postinstall: packaging/apk/post-install
+  preremove: packaging/apk/pre-deinstall
+  postremove: packaging/apk/post-deinstall
+
+apk:
+  scripts:
+    postupgrade: packaging/apk/post-upgrade

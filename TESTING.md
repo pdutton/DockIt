@@ -42,6 +42,23 @@ as 2.2.7+3.gabc1234.dirty. For a release, run it in a clean checkout of the
 tag and attach both packages to the GitHub release. OPERATIONS.md describes
 what the package does.
 
+## Build the APK packages
+
+`packaging/build-apk.sh` does the same for Alpine Linux, with nFPM
+configuration `packaging/nfpm-apk.yaml`, and makes
+`dist/dockit_<version>-r0_x86_64.apk` and
+`dist/dockit_<version>-r0_aarch64.apk`:
+
+```sh
+packaging/build-apk.sh
+```
+
+Release v2.2.8 makes package version 2.2.8-r0. An Alpine version cannot hold a
+commit hash, so a build 3 commits after v2.2.8 makes 2.2.8_git3-r0, and a
+changed tree adds the build time, as in 2.2.8_git3_p20261001190000-r0; apk
+orders both between the two releases. The packages are not signed. For a
+release, attach both to the GitHub release with the .deb packages.
+
 ## Run it locally
 
 Create a dataset in a missing or empty directory, and note the one-time

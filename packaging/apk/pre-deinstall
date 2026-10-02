@@ -1,0 +1,7 @@
+#!/bin/sh
+# pre-deinstall for the DockIt APK: stop DockIt before it is removed.  An
+# upgrade does not run this.
+if [ -e /run/openrc/softlevel ] && rc-service dockit status >/dev/null 2>&1; then
+	rc-service dockit stop
+fi
+exit 0

@@ -1,0 +1,8 @@
+#!/bin/sh
+# post-deinstall for the DockIt APK.  Removing it never deletes the dataset,
+# the log or the dockit user.
+cat <<'EOF2'
+DockIt's dataset (/var/lib/dockit, unless you moved it), its log and the
+dockit user were kept.  Delete them yourself if you no longer need them.
+EOF2
+exit 0

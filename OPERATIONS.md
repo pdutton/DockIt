@@ -5,7 +5,8 @@ The examples use rootless podman; docker works the same way. To run DockIt
 without a container, see
 [Running as a systemd service](#running-as-a-systemd-service), from the .deb
 package or by hand, or, on Alpine Linux,
-[Running as an OpenRC service](#running-as-an-openrc-service).
+[Running as an OpenRC service](#running-as-an-openrc-service), from the APK
+package or by hand.
 
 ## The container image
 
@@ -307,8 +308,9 @@ and `CapabilityBoundingSet=CAP_NET_BIND_SERVICE` the same way.
 ## Running as an OpenRC service
 
 On Alpine Linux, DockIt can run as an OpenRC service, without a container.
-DockIt runs as the `dockit` user, keeps its dataset in `/var/lib/dockit`, reads
-its [settings](#settings) from `/etc/conf.d/dockit`, and logs to
+Install the APK package, or install the files by hand. Either way, DockIt runs
+as the `dockit` user, keeps its dataset in `/var/lib/dockit`, reads its
+[settings](#settings) from `/etc/conf.d/dockit`, and logs to
 `/var/log/dockit/dockit.log`.
 
 The commands use doas, which setup-alpine sets up for the admin user it
@@ -316,9 +318,61 @@ creates; sudo works the same way. As root, leave out `doas`, and run the
 `dockit` commands as the `dockit` user with su instead, such as
 `su -s /bin/sh -c 'dockit check /var/lib/dockit' dockit`.
 
+### The APK package
+
+Download `dockit_<version>-r0_x86_64.apk`, or `_aarch64.apk`, from the
+[GitHub releases](https://github.com/pdutton/DockIt/releases), or build it as
+in [TESTING.md](TESTING.md#build-the-apk-packages), and install it. The
+package is not signed, so apk needs `--allow-untrusted`:
+
+```sh
+doas apk add --allow-untrusted ./dockit_2.2.8-r0_x86_64.apk
+```
+
+That installs `dockit` and the service, and creates the `dockit` user and
+`/var/lib/dockit`. As is usual on Alpine, it neither starts DockIt nor adds it
+to a runlevel. Create the dataset as the `dockit` user, so that user owns the
+files, and note the one-time password. Then start DockIt, now and at every
+boot:
+
+```sh
+doas -u dockit dockit init -admin pdutton -name "Peter Dutton" -email peter@example.com /var/lib/dockit
+doas rc-update add dockit default
+doas rc-service dockit start
+```
+
+DockIt listens on `localhost:8080`. Change that, and any other setting, in
+`/etc/conf.d/dockit`, then run `doas rc-service dockit restart`. Upgrades keep
+your changes to that file, and put the new version beside it as
+`/etc/conf.d/dockit.apk-new`.
+
+To upgrade, stop DockIt, copy the dataset (see [Upgrading](#upgrading)), and
+install the new package:
+
+```sh
+doas rc-service dockit stop
+doas cp -a /var/lib/dockit /var/lib/dockit.before-upgrade
+doas apk add --allow-untrusted ./dockit_2.2.9-r0_x86_64.apk
+```
+
+Installing a new version starts DockIt again if it is in a runlevel, or
+restarts it if it is running, and DockIt upgrades the dataset as it starts. If
+DockIt fails to start, apk shows the error from the log, and the upgrade still
+succeeds; fix the problem and run `doas rc-service dockit start`. An older
+package installs the same way, and restarts DockIt with the older version.
+
+`doas apk del dockit` stops DockIt and removes it, but keeps
+`/etc/conf.d/dockit` if you changed it. It never removes the dataset, the log
+or the `dockit` user, and DockIt stays in its runlevel, so it starts at boot
+again if you reinstall the package.
+
+If you installed DockIt by hand before, first stop it and remove
+`/etc/init.d/dockit`, or apk keeps that file and puts the package's beside it
+as `/etc/init.d/dockit.apk-new`. The package keeps your `/etc/conf.d/dockit`.
+
 ### Installing by hand
 
-`packaging/openrc/` holds the service's files:
+`packaging/openrc/` holds the files the package installs:
 
 | File                                | Install as                | Purpose                                     |
 |-------------------------------------|---------------------------|---------------------------------------------|

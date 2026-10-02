@@ -1,0 +1,18 @@
+#!/bin/sh
+# post-upgrade for the DockIt APK.  Restart DockIt so that the new version
+# runs, if it is running or starts at boot, and DockIt upgrades the dataset as
+# it starts.  If it does not start, say so, but let the upgrade succeed.
+
+# OpenRC is not running in a chroot or while an image is built.
+[ -e /run/openrc/softlevel ] || exit 0
+
+if rc-service dockit status >/dev/null 2>&1 ||
+	[ -n "$(ls /etc/runlevels/*/dockit 2>/dev/null)" ]; then
+	if ! rc-service dockit restart; then
+		cat <<'EOF2'
+DockIt did not start after the upgrade.  Fix what its log says, then run
+`rc-service dockit start`.
+EOF2
+	fi
+fi
+exit 0
