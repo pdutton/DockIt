@@ -657,6 +657,25 @@ supervise-daemon cannot do the same for a service run as another user, so the Op
 (`packaging/openrc/dockit.initd`) waits for `serve` to log `DockIt serving` instead, and stops
 supervise-daemon if `serve` exits first.
 
+## Claude Code Skill
+
+`skills/dockit` is a Claude Code skill for working with tasks: `SKILL.md`, which tells Claude how DockIt
+works and how to use it, and `dockit-api`, a bash script that wraps the REST API with curl and jq.  It is
+a client like any other, using only the public API and the user's token.  It is not part of the binary or
+the packages; users link the directory into their Claude Code skills (see
+[OPERATIONS.md](OPERATIONS.md#the-claude-code-skill)).
+
+- The script does the steps clients most often get wrong: it sends `If-Match` (from `--version`, or from
+  the ETag read just before writing), JSON-encodes Markdown text, and appends to a URL list rather than
+  replacing it.
+- `SKILL.md` describes DockIt, not anyone's way of working.  Workflow rules, such as when a task moves to
+  `in_progress`, belong in the user's own Claude instructions.
+- `internal/api/skill_test.go` runs the script against a test server, so an API change that breaks it
+  fails `go test`.
+
+**Decided — a script, not an MCP server, for now.**  A script needs only bash, curl and jq where Claude
+runs, and no change to DockIt.  An MCP server, giving Claude typed tools, may come later.
+
 ## Miscellaneous Rules
 
 All datetimes must be stored in UTC in a machine friendly timestamp format (RFC 3339, `Z` suffix).
@@ -674,3 +693,4 @@ Timezone conversion and formatting is the job of the web interface / browser or 
 | 6 | Web assets                             | Embedded in the binary; no override      |
 | 7 | Where links are stored                 | `links.yaml`, apart from any task        |
 | 8 | Is a quick transition version-checked? | Yes: it is an edit like any other        |
+| 9 | How Claude Code reaches DockIt         | A skill with a script over the REST API  |

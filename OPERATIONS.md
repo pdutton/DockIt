@@ -462,3 +462,39 @@ Request bodies are JSON and must be sent as `Content-Type: application/json`.
 To update a record, send the `ETag` you read back as `If-Match`; if someone else
 changed the record in the meantime, the update is rejected with `412` and the
 current record. The endpoints are listed in [DESIGN.md](DESIGN.md#rest-api).
+
+### The Claude Code skill
+
+[`skills/dockit`](skills/dockit/SKILL.md) is a
+[Claude Code](https://claude.com/claude-code) skill that lets Claude read and
+update tasks through the REST API. It holds `SKILL.md`, which tells Claude how
+DockIt works, and `dockit-api`, a client script that needs bash, curl and jq.
+It runs where Claude runs, which need not be where DockIt runs.
+
+Link the directory from a checkout of DockIt into your Claude Code skills, so
+it updates when you pull. To use it in every project:
+
+```sh
+ln -s /path/to/DockIt/skills/dockit ~/.claude/skills/dockit
+```
+
+Or link it into one project's `.claude/skills/` to use it only there.
+
+Then give Claude the server's address and an API token. `dockit-api` has no
+default address, and stops if either is missing. For example, in
+`~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "DOCKIT_URL": "http://localhost:8080",
+    "DOCKIT_TOKEN": "dockit_..."
+  }
+}
+```
+
+The token acts as its user, so consider making Claude a DockIt user of its
+own, with the `member` role and its own token. Its comments and changes are
+then marked as Claude's, and it can be given tasks.
+
+`dockit-api` also works by hand: run it with no arguments for its usage.

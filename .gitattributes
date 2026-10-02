@@ -4,3 +4,5 @@ go.mod text eol=lf
 go.sum text eol=lf
 # systemd and sh read packaging files literally, so a CR would end up in values.
 packaging/** text eol=lf
+# bash reads the skill's client script literally, so a CR would break it.
+skills/dockit/dockit-api text eol=lf
