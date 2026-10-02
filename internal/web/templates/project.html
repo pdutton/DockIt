@@ -36,7 +36,7 @@
     <label>Priority
       <select name="priority">
         <option value="">Any</option>
-        {{range priorities}}<option value="{{.}}"{{if eq . $.Data.Filter.Priority}} selected{{end}}>{{.}}</option>{{end}}
+        {{range priorities}}<option value="{{.}}"{{if eq . $.Data.Filter.Priority}} selected{{end}}>{{priority .}}</option>{{end}}
       </select>
     </label>
     <label>Sort by
@@ -61,7 +61,7 @@
       <td class="title">{{with .Type}}<span class="type">{{taskTypeShort .}}:</span> {{end}}<a href="/tasks/{{.ID}}">{{.Title}}</a></td>
       <td>{{.Owner}}</td>
       <td>{{taskState .State}}{{if .Substate}} ({{substate .State .Substate}}){{end}}</td>
-      <td class="num">{{.Priority}}</td>
+      <td>{{priority .Priority}}</td>
       <td>{{shortTime .Modified}}</td>
     </tr>
   {{end}}

@@ -76,7 +76,7 @@
   </label>
   <label>Priority
     <select name="priority">
-      {{range priorities}}<option value="{{.}}"{{if eq . $.Form.Priority}} selected{{end}}>{{.}}{{if eq . 1}} (highest){{end}}</option>{{end}}
+      {{range priorities}}<option value="{{.}}"{{if eq . $.Form.Priority}} selected{{end}}>{{priority .}}</option>{{end}}
     </select>
     {{with .Errors.priority}}<span class="error">{{.}}</span>{{end}}
   </label>
