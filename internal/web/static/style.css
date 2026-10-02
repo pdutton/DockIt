@@ -131,6 +131,9 @@ dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 1r
 dl.facts dt { color: var(--muted); }
 dl.facts dd, dl.urls dd { margin: 0; }
 dl.urls dt { font-weight: 600; margin-top: 0.5rem; }
+/* Quick transition buttons, small enough to sit on the State line. */
+form.transition { margin-left: 0.5rem; }
+form.transition button { padding: 0 0.6rem; font-size: 0.85rem; line-height: 1.5; }
 
 .markdown { overflow-wrap: anywhere; }
 .markdown pre, .conflict pre {

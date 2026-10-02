@@ -127,6 +127,7 @@ func (w *Web) routes() {
 	h("POST /projects/{pid}/tasks", w.taskCreate)
 	h("GET /tasks/{tid}", w.taskView)
 	h("POST /tasks/{tid}", w.taskUpdate)
+	h("POST /tasks/{tid}/transitions/{action}", w.taskTransition)
 	h("POST /tasks/{tid}/comments", w.commentAdd)
 	h("POST /tasks/{tid}/comments/{cid}", w.commentEdit)
 	h("POST /tasks/{tid}/comments/{cid}/delete", w.commentDelete)

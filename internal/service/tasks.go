@@ -158,7 +158,35 @@ func (s *Service) UpdateTask(actor, tid string, version int, patch TaskPatch) (*
 	if err := checkVersion(version, t.Version, t); err != nil {
 		return nil, err
 	}
+	return s.patchTask(t, patch)
+}
 
+// TransitionTask makes the quick transition with id on task tid, which must
+// be in the transition's from state.  version is the version the change is
+// based on.  Members and admins.
+func (s *Service) TransitionTask(actor, tid string, version int, id string) (*model.Task, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, err := s.authorize(actor, editors); err != nil {
+		return nil, err
+	}
+	t := s.x.Task(tid)
+	tr, ok := model.TransitionByID(id)
+	if t == nil || !ok {
+		return nil, ErrNotFound
+	}
+	if err := checkVersion(version, t.Version, t); err != nil {
+		return nil, err
+	}
+	if t.State != tr.From {
+		return nil, ErrWrongState
+	}
+	return s.patchTask(t, TaskPatch{State: &tr.To, Substate: &tr.Substate})
+}
+
+// patchTask applies patch to t, a copy of a task from the index, and writes
+// it if anything changed.  The caller must hold s.mu for writing.
+func (s *Service) patchTask(t *model.Task, patch TaskPatch) (*model.Task, error) {
 	changed := fieldSet{}
 	set(&t.Title, patch.Title, "title", changed)
 	set(&t.Type, patch.Type, "type", changed)

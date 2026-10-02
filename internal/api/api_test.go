@@ -335,6 +335,34 @@ func TestTasks(t *testing.T) {
 	}
 }
 
+func TestTransitions(t *testing.T) {
+	f := newFixture(t, Options{})
+	f.want(f.do("POST", "/projects/WEB/tasks", "mem", `{"title":"T"}`), 201, "")
+	start := "/tasks/WEB-1/transitions/start"
+
+	f.want(f.do("POST", start, "view", nil, "If-Match", `"1"`), 403, "forbidden")
+	f.want(f.do("POST", start, "mem", nil), 428, "precondition_required")
+	f.want(f.do("POST", "/tasks/WEB-1/transitions/finish", "mem", nil, "If-Match", `"1"`), 404, "not_found")
+	f.want(f.do("POST", "/tasks/WEB-9/transitions/start", "mem", nil, "If-Match", `"1"`), 404, "not_found")
+	f.want(f.do("POST", "/tasks/WEB-1/transitions/pause", "mem", nil, "If-Match", `"1"`), 409, "wrong_state")
+
+	r := f.do("POST", start, "mem", nil, "If-Match", `"1"`)
+	f.want(r, 200, "")
+	if r.header.Get("ETag") != `"2"` || r.obj()["state"] != "in_progress" {
+		t.Errorf("started %s ETag %s", r.body, r.header.Get("ETag"))
+	}
+	r = f.do("POST", start, "mem", nil, "If-Match", `"1"`)
+	f.want(r, 412, "conflict")
+	if cur, _ := r.obj()["current"].(map[string]any); cur["state"] != "in_progress" || r.header.Get("ETag") != `"2"` {
+		t.Errorf("conflict %s ETag %s", r.body, r.header.Get("ETag"))
+	}
+	r = f.do("POST", "/tasks/WEB-1/transitions/complete", "mem", nil, "If-Match", `"2"`)
+	f.want(r, 200, "")
+	if r.obj()["state"] != "complete" || r.obj()["substate"] != "done" {
+		t.Errorf("completed %s", r.body)
+	}
+}
+
 func TestComments(t *testing.T) {
 	f := newFixture(t, Options{})
 	f.want(f.do("POST", "/projects/WEB/tasks", "mem", `{"title":"T"}`), 201, "")
@@ -543,6 +571,18 @@ func TestEnums(t *testing.T) {
 	if b := rels[1].(map[string]any); b["id"] != "blocked_by" || b["display"] != "Blocked by" ||
 		b["phrase"] != "is blocked by" || b["link_type"] != "blocks" || b["reverse"] != true {
 		t.Errorf("link relation = %v", b)
+	}
+	trs, _ := r.obj()["task_transitions"].([]any)
+	if len(trs) != 5 {
+		t.Fatalf("transitions = %s", r.body)
+	}
+	start, done := trs[0].(map[string]any), trs[2].(map[string]any)
+	if _, ok := start["substate"]; ok || start["id"] != "start" || start["display"] != "Start" ||
+		start["from"] != "new" || start["to"] != "in_progress" {
+		t.Errorf("start = %v", start)
+	}
+	if done["id"] != "complete" || done["to"] != "complete" || done["substate"] != "done" {
+		t.Errorf("complete = %v", done)
 	}
 }
 
