@@ -95,6 +95,22 @@ doas rc-service dockit start
 Its settings are in `/etc/conf.d/dockit`. To upgrade, and for the rest, see
 [Running as an OpenRC service](OPERATIONS.md#running-as-an-openrc-service).
 
+## Use DockIt from Claude Code
+
+[`skills/dockit`](skills/dockit/SKILL.md) is a Claude Code skill for working
+with DockIt tasks. Link it into your skills, then give it the server's address
+and an API token in `~/.claude/settings.json`:
+
+```sh
+ln -s /path/to/DockIt/skills/dockit ~/.claude/skills/dockit
+```
+
+```json
+{ "env": { "DOCKIT_URL": "http://localhost:8080", "DOCKIT_TOKEN": "dockit_..." } }
+```
+
+See [The Claude Code skill](OPERATIONS.md#the-claude-code-skill) for more.
+
 ## More
 
 - [OPERATIONS.md](OPERATIONS.md): settings, named volumes, running as a

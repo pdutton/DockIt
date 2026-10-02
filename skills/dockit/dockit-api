@@ -1,0 +1,395 @@
+#!/usr/bin/env bash
+# dockit-api: a command-line client for the DockIt REST API, written for the
+# dockit skill (SKILL.md, next to it) but usable on its own.  It needs bash,
+# curl and jq, and reads DOCKIT_URL and DOCKIT_TOKEN from the environment.
+#
+# Run it with no arguments for usage.  Exit status: 0 on success, 1 when the
+# server refuses a request or cannot be reached, 2 for a usage or setup error.
+
+set -euo pipefail
+
+usage() {
+	cat <<'EOF'
+usage: dockit-api <command> [arguments]
+
+Reading:
+  me                                  the user the token acts as
+  enums                               states, substates, types, link relations, transitions
+  projects                            all projects
+  project PID
+  users                               all users
+  user UID
+  tasks PID [filters]                 one line per task: id, state, priority, type, owner, title
+  mine [filters]                      the same, for your tasks in every project
+  task TID                            the task with its comments and links, as JSON
+
+  filters: --state S (repeatable), --all (every state), --owner U (not for mine),
+           --priority N, --sort id|priority|modified, --json (full records, not lines).
+           Without --state or --all, tasks that are complete or deferred are left out.
+
+Writing (each prints the record it wrote; a task is printed without its comments):
+  create PID title=T [FIELD=VALUE ...]
+  update TID [--version N] FIELD=VALUE ...
+  transition TID [--version N] ACTION start, defer, complete, pause or restart
+  comment TID [FILE]                  add a comment; text from FILE, or stdin
+  edit-comment TID CID [FILE]         replace your own comment's text
+  delete-comment TID CID              delete your own comment; prints nothing
+  add-url TID TYPE URL                append a URL to the task's list for TYPE (e.g. pr)
+  remove-url TID TYPE URL
+  link TID RELATION OTHER             e.g. link WEB-12 blocked_by WEB-7
+  unlink TID RELATION OTHER           prints nothing
+
+  FIELD=VALUE  sets a string, or the priority as a number
+  FIELD=@FILE  reads the value from FILE (@- for stdin), e.g. description=@notes.md
+  FIELD=       clears an optional field (description, substate, found_in, resolved_in)
+  FIELD:=JSON  sets a raw JSON value
+
+  --version N makes the write fail with 412 if the record is no longer at
+  version N.  Without it, the current version is read just before writing.
+
+Anything else:
+  api METHOD PATH [--version N] [BODY]
+                                      PATH under /api/v1, e.g. /projects/WEB; BODY is
+                                      JSON, @FILE or @-.  PATCH and DELETE send If-Match.
+
+Environment: DOCKIT_URL (e.g. http://localhost:8080) and DOCKIT_TOKEN.
+EOF
+}
+
+die() {
+	printf 'dockit-api: %s\n' "$*" >&2
+	exit 2
+}
+
+for cmd in curl jq; do
+	command -v "$cmd" >/dev/null || die "$cmd is required but was not found"
+done
+if (($# == 0)); then
+	usage >&2
+	exit 2
+fi
+case $1 in -h | --help | help)
+	usage
+	exit 0
+	;;
+esac
+[[ -n ${DOCKIT_URL-} ]] || die "DOCKIT_URL is not set; set it to the DockIt server's address, e.g. http://localhost:8080"
+[[ -n ${DOCKIT_TOKEN-} ]] || die "DOCKIT_TOKEN is not set; set it to a DockIt API token"
+api=${DOCKIT_URL%/}/api/v1
+
+umask 077
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+# The token goes to curl in a file, so it never appears in a process listing.
+printf 'Authorization: Bearer %s\n' "$DOCKIT_TOKEN" >"$tmp/auth"
+
+# request METHOD PATH [BODY [IF-MATCH]] sends a request.  On success it leaves
+# the response body in $tmp/body and its ETag in $etag.  On failure it reports
+# the error, with the current record for a 412, and exits 1.
+etag=
+request() {
+	local method=$1 path=$2 body=${3-} match=${4-} status
+	local args=(-sS -X "$method" -o "$tmp/body" -D "$tmp/headers" -w '%{http_code}' -H "@$tmp/auth")
+	if [[ -n $body ]]; then
+		printf '%s' "$body" >"$tmp/request"
+		args+=(-H 'Content-Type: application/json' --data-binary "@$tmp/request")
+	fi
+	if [[ -n $match ]]; then
+		args+=(-H "If-Match: $match")
+	fi
+	if ! status=$(curl "${args[@]}" "$api$path"); then
+		printf 'dockit-api: cannot reach %s\n' "$DOCKIT_URL" >&2
+		exit 1
+	fi
+	etag=$(sed -n 's/^[Ee][Tt][Aa][Gg]:[[:space:]]*//p' "$tmp/headers" | tr -d '\r' | tail -n 1)
+	if ((status >= 400)); then
+		if jq -e '.error' "$tmp/body" >/dev/null 2>&1; then
+			jq -r --arg s "$status" '.error | "dockit-api: \($s) \(.code): \(.message)"
+				+ (if (.field // "") != "" then " (field \(.field))" else "" end)' "$tmp/body" >&2
+			if jq -e '.current' "$tmp/body" >/dev/null 2>&1; then
+				printf 'dockit-api: the current record, ETag %s:\n' "$etag" >&2
+				jq '.current' "$tmp/body" >&2
+			fi
+		else
+			printf 'dockit-api: %s from %s %s\n' "$status" "$method" "$path" >&2
+		fi
+		exit 1
+	fi
+}
+
+# get PATH prints the response to GET PATH.
+get() {
+	request GET "$1"
+	cat "$tmp/body"
+}
+
+# if_match PATH sets $match for a write to PATH: from --version if given,
+# otherwise the record's ETag as it is now.
+match=
+if_match() {
+	if [[ -n $version ]]; then
+		[[ $version =~ ^[0-9]+$ ]] || die "--version must be a number, not '$version'"
+		match="\"$version\""
+	else
+		request GET "$1"
+		match=$etag
+	fi
+}
+
+# take_version reads an optional --version N from the front of its arguments
+# into $version, and sets $shifted to how many arguments that was.
+version= shifted=0
+take_version() {
+	if [[ ${1-} == --version ]]; then
+		(($# >= 2)) || die "--version needs a number"
+		version=$2 shifted=2
+	fi
+}
+
+# read_text [FILE] prints FILE, or stdin when FILE is missing or -.
+read_text() {
+	if [[ -z ${1-} || $1 == - ]]; then
+		cat
+	else
+		[[ -r $1 ]] || die "cannot read $1"
+		cat -- "$1"
+	fi
+}
+
+# fields MODE FIELD=VALUE... sets $body to a JSON object of the fields.  In
+# create mode an empty value is left out; in update mode it is null.
+body=
+fields() {
+	local mode=$1 arg key value
+	shift
+	body='{}'
+	for arg; do
+		if [[ $arg =~ ^([a-z_]+):=(.*)$ ]]; then
+			key=${BASH_REMATCH[1]}
+			body=$(jq -c --arg k "$key" --argjson v "${BASH_REMATCH[2]}" '. + {($k): $v}' <<<"$body" 2>/dev/null) ||
+				die "$key:= needs a JSON value"
+			continue
+		fi
+		[[ $arg =~ ^([a-z_]+)=(.*)$ ]] || die "expected FIELD=VALUE, not '$arg'"
+		key=${BASH_REMATCH[1]} value=${BASH_REMATCH[2]}
+		if [[ $value == @* ]]; then
+			read_text "${value#@}" >"$tmp/value"
+			body=$(jq -c --arg k "$key" --rawfile v "$tmp/value" '. + {($k): $v}' <<<"$body")
+		elif [[ -z $value ]]; then
+			if [[ $mode == update ]]; then
+				body=$(jq -c --arg k "$key" '. + {($k): null}' <<<"$body")
+			fi
+		elif [[ $key == priority ]]; then
+			[[ $value =~ ^[0-9]+$ ]] || die "priority must be a number, not '$value'"
+			body=$(jq -c --argjson v "$value" '. + {priority: $v}' <<<"$body")
+		else
+			body=$(jq -c --arg k "$key" --arg v "$value" '. + {($k): $v}' <<<"$body")
+		fi
+	done
+}
+
+# print_task prints the task in $tmp/body without its comments.
+print_task() {
+	jq 'del(.comments)' "$tmp/body"
+}
+
+# task_filters parses the filters of tasks and mine.
+states=() all=0 owner= priority= sort= json=0
+task_filters() {
+	while (($#)); do
+		case $1 in
+		--state | --owner | --priority | --sort)
+			(($# >= 2)) || die "$1 needs a value"
+			case $1 in
+			--state) states+=("$2") ;;
+			--owner) owner=$2 ;;
+			--priority) priority=$2 ;;
+			--sort) sort=$2 ;;
+			esac
+			shift
+			;;
+		--all) all=1 ;;
+		--json) json=1 ;;
+		*) die "unknown filter '$1'" ;;
+		esac
+		shift
+	done
+	if ((${#states[@]} == 0 && all == 0)); then
+		states=(new in_progress paused)
+	fi
+}
+
+# task_query prints the query string for the filters.
+task_query() {
+	local q= s
+	# Written for bash 3.2 (macOS), where an empty "${a[@]}" trips set -u.
+	for s in ${states[@]+"${states[@]}"}; do
+		q+="&state=$s"
+	done
+	[[ -n $owner ]] && q+="&owner=$owner"
+	[[ -n $priority ]] && q+="&priority=$priority"
+	[[ -n $sort ]] && q+="&sort=$sort"
+	printf '%s' "${q#&}"
+}
+
+# list_tasks prints the JSON array of tasks on stdin, one line per task unless
+# --json was given.
+list_tasks() {
+	if ((json)); then
+		jq .
+	else
+		jq -r '.[] | [.id, .state + (if (.substate // "") != "" then "/" + .substate else "" end),
+			"P\(.priority)", .type, .owner, .title] | @tsv'
+	fi
+}
+
+need() {
+	(($1 >= $2)) || die "$3: missing arguments; run dockit-api with no arguments for usage"
+}
+
+cmd=$1
+shift
+case $cmd in
+me | enums | projects | users)
+	get "/$cmd" | jq .
+	;;
+project | user)
+	need $# 1 "$cmd"
+	get "/${cmd}s/$1" | jq .
+	;;
+tasks)
+	need $# 1 "$cmd"
+	pid=$1
+	shift
+	task_filters "$@"
+	get "/projects/$pid/tasks?$(task_query)" | list_tasks
+	;;
+mine)
+	task_filters "$@"
+	[[ -z $owner ]] || die "mine lists your own tasks; use tasks PID --owner U for someone else's"
+	owner=$(get /me | jq -r .id)
+	get /projects | jq -r '.[].id' >"$tmp/projects"
+	query=$(task_query)
+	while read -r pid; do
+		get "/projects/$pid/tasks?$query"
+		echo
+	done <"$tmp/projects" | jq -s 'add // []' | list_tasks
+	;;
+task)
+	need $# 1 "$cmd"
+	get "/tasks/$1/links" >"$tmp/links"
+	get "/tasks/$1" | jq --slurpfile links "$tmp/links" '. + {links: $links[0]}'
+	;;
+create)
+	need $# 2 "$cmd"
+	pid=$1
+	shift
+	fields create "$@"
+	request POST "/projects/$pid/tasks" "$body"
+	print_task
+	;;
+update)
+	need $# 1 "$cmd"
+	tid=$1
+	shift
+	take_version "$@"
+	shift "$shifted"
+	need $# 1 "$cmd"
+	fields update "$@"
+	if_match "/tasks/$tid"
+	request PATCH "/tasks/$tid" "$body" "$match"
+	print_task
+	;;
+transition)
+	need $# 1 "$cmd"
+	tid=$1
+	shift
+	take_version "$@"
+	shift "$shifted"
+	need $# 1 "$cmd"
+	if_match "/tasks/$tid"
+	request POST "/tasks/$tid/transitions/$1" "" "$match"
+	print_task
+	;;
+comment | edit-comment)
+	if [[ $cmd == comment ]]; then
+		need $# 1 "$cmd"
+		path=/tasks/$1/comments method=POST file=${2-}
+	else
+		need $# 2 "$cmd"
+		path=/tasks/$1/comments/$2 method=PATCH file=${3-}
+		if_match "$path"
+	fi
+	read_text "$file" >"$tmp/value"
+	[[ -s $tmp/value ]] || die "the comment is empty; give a FILE or the text on stdin"
+	request "$method" "$path" "$(jq -n --rawfile t "$tmp/value" '{text: $t}')" "$match"
+	jq . "$tmp/body"
+	;;
+delete-comment)
+	need $# 2 "$cmd"
+	path=/tasks/$1/comments/$2
+	if_match "$path"
+	request DELETE "$path" "" "$match"
+	;;
+add-url | remove-url)
+	need $# 3 "$cmd"
+	tid=$1 type=$2 url=$3
+	request GET "/tasks/$tid"
+	has=$(jq --arg t "$type" --arg u "$url" 'any((.urls[$t] // [])[]; . == $u)' "$tmp/body")
+	if [[ $cmd == add-url && $has == true ]]; then
+		print_task # already there
+		exit 0
+	fi
+	if [[ $cmd == remove-url && $has == false ]]; then
+		printf 'dockit-api: %s has no %s URL %s\n' "$tid" "$type" "$url" >&2
+		exit 1
+	fi
+	# A list in urls replaces the whole list for its type, so send all of it.
+	body=$(jq -c --arg t "$type" --arg u "$url" --arg cmd "$cmd" '(.urls[$t] // []) as $l
+		| {urls: {($t): (if $cmd == "add-url" then $l + [$u] else $l - [$u] | if . == [] then null else . end end)}}' "$tmp/body")
+	request PATCH "/tasks/$tid" "$body" "$etag"
+	print_task
+	;;
+link)
+	need $# 3 "$cmd"
+	request POST "/tasks/$1/links" "$(jq -nc --arg r "$2" --arg o "$3" '{type: $r, task: $o}')"
+	jq . "$tmp/body"
+	;;
+unlink)
+	need $# 3 "$cmd"
+	request DELETE "/tasks/$1/links/$2/$3"
+	;;
+api)
+	need $# 2 "$cmd"
+	method=$(tr '[:lower:]' '[:upper:]' <<<"$1") path=${2#/api/v1}
+	path=/${path#/}
+	shift 2
+	take_version "$@"
+	shift "$shifted"
+	body=
+	if (($#)); then
+		if [[ $1 == @* ]]; then
+			body=$(read_text "${1#@}")
+		else
+			body=$1
+		fi
+	fi
+	case $method in
+	PATCH | DELETE)
+		# Not everything has a GET or an ETag (links, tokens), so a failed
+		# read only means no If-Match.
+		if [[ -n $version ]]; then
+			if_match "$path"
+		else
+			match=$(curl -sS -o /dev/null -D - -H "@$tmp/auth" "$api$path" |
+				sed -n 's/^[Ee][Tt][Aa][Gg]:[[:space:]]*//p' | tr -d '\r' | tail -n 1) || true
+		fi
+		;;
+	esac
+	request "$method" "$path" "$body" "$match"
+	if [[ -s $tmp/body ]]; then
+		jq . "$tmp/body"
+	fi
+	;;
+*) die "unknown command '$cmd'; run dockit-api with no arguments for usage" ;;
+esac

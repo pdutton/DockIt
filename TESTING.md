@@ -13,6 +13,10 @@ go run ./internal/buildcheck $VERSION
 go build -ldflags "-X main.version=$VERSION" ./cmd/dockit
 ```
 
+`go test` also runs the Claude Code skill's client script,
+`skills/dockit/dockit-api`, against a test server (`internal/api/skill_test.go`).
+Those tests need bash, curl and jq, and are skipped without them and on Windows.
+
 `buildcheck` fails a release build whose tag does not match the dataset format:
 release vX.Y.Z must write format X.Y (`model.FormatCurrent`). Any change to
 what may appear in the dataset bumps the minor, or the major if existing data
@@ -102,3 +106,4 @@ The code follows the architecture in [DESIGN.md](DESIGN.md):
 | `internal/upgrade`  | Dataset format migrations                              |
 | `internal/buildcheck` | Build step: a release's version matches its dataset format |
 | `internal/auth`, `internal/ratelimit` | Password and token hashing; failed-attempt limits |
+| `skills/dockit`     | Claude Code skill: `SKILL.md` and the `dockit-api` client script (not Go) |
