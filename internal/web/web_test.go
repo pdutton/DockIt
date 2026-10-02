@@ -320,7 +320,8 @@ func TestTasksAndComments(t *testing.T) {
 	f := newFixture(t)
 	mem := f.login("mem")
 
-	f.want(mem.get("/projects/WEB/tasks/new"), 200, "New task", `<option value="task" selected>Task</option>`)
+	f.want(mem.get("/projects/WEB/tasks/new"), 200, "New task", `<option value="task" selected>Task</option>`,
+		`<option value="1">Critical</option>`, `<option value="3" selected>Medium</option>`)
 	f.want(mem.post("/projects/WEB/tasks", "title", "", "owner", "mem", "state", "new", "priority", "3"), 422, "required")
 	f.want(mem.post("/projects/WEB/tasks", "title", "x", "owner", "mem", "state", "complete", "priority", "3"), 422)
 	p := mem.post("/projects/WEB/tasks", "title", "Fix the logo", "type", "feature", "description", "It is *wrong*",
@@ -328,14 +329,15 @@ func TestTasksAndComments(t *testing.T) {
 	if p.status != http.StatusSeeOther || p.location != "/tasks/WEB-1" {
 		t.Fatalf("create task: %d %s %s", p.status, p.location, p.body)
 	}
-	f.want(mem.get("/tasks/WEB-1"), 200, "Fix the logo", "<em>wrong</em>", "<dd>Feature</dd>")
-	f.want(mem.get("/projects/WEB?state=new&sort=priority"), 200, "WEB-1")
+	f.want(mem.get("/tasks/WEB-1"), 200, "Fix the logo", "<em>wrong</em>", "<dd>Feature</dd>",
+		"<dt>Priority</dt><dd>High</dd>", `<option value="2" selected>High</option>`)
+	f.want(mem.get("/projects/WEB?state=new&sort=priority"), 200, "WEB-1", "<td>High</td>")
 	if p := mem.get("/projects/WEB?state=paused"); strings.Contains(p.body, "Fix the logo") {
 		t.Error("filter did not filter")
 	}
 	f.want(mem.get("/projects/WEB?state=paused&state=new"), 200, "WEB-1",
 		`value="paused" checked`, `value="new" checked`, `value="complete">`)
-	f.want(mem.get("/projects/WEB?priority=3"), 200, "WEB-1", `<option value="3" selected>3</option>`)
+	f.want(mem.get("/projects/WEB?priority=3"), 200, "WEB-1", `<option value="3" selected>Medium</option>`)
 	if p := mem.get("/projects/WEB?priority=1"); strings.Contains(p.body, "Fix the logo") {
 		t.Error("priority 1 shows a priority 2 task")
 	}

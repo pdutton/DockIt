@@ -555,6 +555,8 @@ through after someone else's edit.)
 - Project URLs are accepted only with `http` or `https` schemes, closing the `javascript:` URL hole.
 - Enumerated fields are always shown via the built-in display strings, never as raw stored values
   (except unknown ids, which are shown raw with a warning, as noted above).
+- Priorities are shown by name: 1 Critical, 2 High, 3 Medium, 4 Low, 5 Trivial.  The names are for
+  the web UI only; the dataset and the REST API keep the numbers.
 - A strict `Content-Security-Policy` header (no inline scripts) as defence in depth.
 - A form is acted on once.  Each rendered form carries a random submission key.  A POST that repeats an
   earlier one in the same session exactly, key and all (a double click or a retry), is not run again: it

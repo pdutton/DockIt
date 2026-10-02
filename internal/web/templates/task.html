@@ -14,7 +14,7 @@
       <button type="submit" class="secondary">{{.Display}}</button>
     </form>
     {{- end}}{{end}}</dd>
-  <dt>Priority</dt><dd>{{$t.Priority}}</dd>
+  <dt>Priority</dt><dd>{{priority $t.Priority}}</dd>
   {{with $t.FoundIn}}<dt>Found in</dt><dd>{{.}}</dd>{{end}}
   {{with $t.ResolvedIn}}<dt>Resolved in</dt><dd>{{.}}</dd>{{end}}
   <dt>Owner</dt><dd>{{$t.Owner}}</dd>
@@ -43,7 +43,7 @@
       <dt>Title</dt><dd>{{.Title}}</dd>
       <dt>Type</dt><dd>{{taskType .Type}}</dd>
       <dt>State</dt><dd>{{taskState .State}}{{if .Substate}} ({{substate .State .Substate}}){{end}}</dd>
-      <dt>Priority</dt><dd>{{.Priority}}</dd>
+      <dt>Priority</dt><dd>{{priority .Priority}}</dd>
       <dt>Found in</dt><dd>{{.FoundIn}}</dd>
       <dt>Resolved in</dt><dd>{{.ResolvedIn}}</dd>
       <dt>Owner</dt><dd>{{.Owner}}</dd>

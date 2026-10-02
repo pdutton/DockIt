@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io/fs"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -49,6 +50,7 @@ var funcs = template.FuncMap{
 	"urlType":       func(id string) template.HTML { return enumTag(model.URLTypes, id) },
 	"taskURLType":   func(id string) template.HTML { return enumTag(model.TaskURLTypes, id) },
 	"role":          func(id string) template.HTML { return enumTag(model.Roles, id) },
+	"priority":      priorityName,
 	"substate": func(state, id string) template.HTML {
 		if e, ok := model.Substates[state]; ok {
 			return enumTag(e, id)
@@ -65,7 +67,7 @@ var funcs = template.FuncMap{
 	"linkRelations": func() []model.Relation { return model.Relations },
 	"transitions":   model.TransitionsFrom,
 	"allSubstates":  allSubstates,
-	"priorities":    func() []int { return []int{1, 2, 3, 4, 5} },
+	"priorities":    priorities,
 	"isAdmin":       func(u *model.User) bool { return u != nil && u.Role == model.RoleAdmin },
 	"canEdit": func(u *model.User) bool {
 		return u != nil && (u.Role == model.RoleAdmin || u.Role == model.RoleMember)
@@ -83,8 +85,42 @@ func enumTag(e *model.Enum, id string) template.HTML {
 	if d, ok := e.Display(id); ok {
 		return template.HTML(template.HTMLEscapeString(d))
 	}
+	return unknownTag(id)
+}
+
+// unknownTag shows a stored value DockIt does not recognize raw, with a
+// warning marker.
+func unknownTag(raw string) template.HTML {
 	return template.HTML(fmt.Sprintf(`<span class="unknown" title="Unknown value; this DockIt does not recognize it">%s ⚠</span>`,
-		template.HTMLEscapeString(id)))
+		template.HTMLEscapeString(raw)))
+}
+
+// priorityNames are the priorities' display strings.  They are for the web
+// interface only: the dataset and the API keep the numbers.
+var priorityNames = map[int]string{
+	1: "Critical",
+	2: "High",
+	3: "Medium",
+	4: "Low",
+	5: "Trivial",
+}
+
+// priorities lists the priorities, highest first.
+func priorities() []int {
+	var out []int
+	for p := model.MinPriority; p <= model.MaxPriority; p++ {
+		out = append(out, p)
+	}
+	return out
+}
+
+// priorityName shows a priority by its display string.  A priority with no
+// name, which should never occur, is shown raw with a warning marker.
+func priorityName(p int) template.HTML {
+	if d, ok := priorityNames[p]; ok {
+		return template.HTML(template.HTMLEscapeString(d))
+	}
+	return unknownTag(strconv.Itoa(p))
 }
 
 // taskTypeAbbrevs are the task types' short names, which prefix titles in
