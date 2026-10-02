@@ -619,7 +619,10 @@ its settings or the dataset: no dataset yet, dataset errors, a newer format, or 
 A service manager should not restart it then, and the systemd unit (`packaging/systemd/dockit.service`)
 does not.  Failing to listen exits 1, because a port in use may come free.  When `$NOTIFY_SOCKET` is
 set, `serve` sends systemd `READY=1` once it is listening and `STOPPING=1` when it shuts down
-(`Type=notify`), so `systemctl start`, and the .deb's upgrade, can tell whether it started.
+(`Type=notify`), so `systemctl start`, and the .deb's upgrade, can tell whether it started.  OpenRC's
+supervise-daemon cannot do the same for a service run as another user, so the OpenRC script
+(`packaging/openrc/dockit.initd`) waits for `serve` to log `DockIt serving` instead, and stops
+supervise-daemon if `serve` exits first.
 
 ## Miscellaneous Rules
 

@@ -81,7 +81,7 @@ see [Running as a systemd service](OPERATIONS.md#running-as-a-systemd-service).
 ## More
 
 - [OPERATIONS.md](OPERATIONS.md): settings, named volumes, running as a
-  systemd service, restore, stale locks, and caring for your data.
+  systemd or OpenRC service, restore, stale locks, and caring for your data.
 - [TESTING.md](TESTING.md): running DockIt without a container, developing
   it, and building the .deb packages.
 - [DESIGN.md](DESIGN.md): architecture, dataset format, and the REST API.
