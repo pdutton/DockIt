@@ -363,7 +363,8 @@ type taskViewData struct {
 	Conflict *model.Task
 	// Comment form state after a failed comment action.
 	Comment        commentState
-	EditingOpen    bool // open the edit form, after a failed edit
+	EditingOpen    bool   // open the edit form, after a failed edit
+	Transition     string // why a quick transition was not made
 	CommentsByUser map[string]bool
 	Links          []linkItem
 	Link           linkState // link form state after a failed add
@@ -429,6 +430,28 @@ func (w *Web) taskUpdate(rw http.ResponseWriter, r *http.Request, c *ctx) error 
 				d.Form.Version = cur.Version
 			}
 		})
+	}
+	return redirect(rw, r, "/tasks/"+tid)
+}
+
+// taskTransition makes a quick transition.  If the task has changed since
+// the page was shown, nothing is done, and the page is shown again as the
+// task is now.
+func (w *Web) taskTransition(rw http.ResponseWriter, r *http.Request, c *ctx) error {
+	tid := r.PathValue("tid")
+	_, err := w.svc.TransitionTask(c.me.ID, tid, formInt(r, "version"), r.PathValue("action"))
+	if err != nil {
+		var ce *service.ConflictError
+		var msg string
+		switch {
+		case errors.As(err, &ce):
+			msg = "Someone else changed this task after you loaded the page, so nothing was done. This is how it is now."
+		case errors.Is(err, service.ErrWrongState):
+			msg = "That does not apply to the task in its current state, so nothing was done."
+		default:
+			return err
+		}
+		return w.taskPage(rw, r, c, http.StatusConflict, tid, func(d *taskViewData) { d.Transition = msg })
 	}
 	return redirect(rw, r, "/tasks/"+tid)
 }

@@ -403,6 +403,55 @@ func TestTasksAndComments(t *testing.T) {
 	f.want(view.get("/projects/WEB/tasks/new"), 403)
 }
 
+func TestTransitions(t *testing.T) {
+	f := newFixture(t)
+	if _, err := f.svc.CreateTask("mem", "WEB", service.NewTask{Title: "Sign the binaries"}); err != nil {
+		t.Fatal(err)
+	}
+	mem := f.login("mem")
+	p := mem.get("/tasks/WEB-1")
+	f.want(p, 200, `action="/tasks/WEB-1/transitions/start"`, `action="/tasks/WEB-1/transitions/defer"`,
+		`<button type="submit" class="secondary">Start</button>`)
+	if strings.Contains(p.body, "/transitions/pause") {
+		t.Error("pause offered on a new task")
+	}
+
+	p = mem.post("/tasks/WEB-1/transitions/start", "version", "1")
+	if p.status != http.StatusSeeOther || p.location != "/tasks/WEB-1" {
+		t.Fatalf("start: %d %s %s", p.status, p.location, p.body)
+	}
+	p = mem.get("/tasks/WEB-1")
+	f.want(p, 200, "<dd>In Progress", `action="/tasks/WEB-1/transitions/complete"`, `action="/tasks/WEB-1/transitions/pause"`)
+	if strings.Contains(p.body, "/transitions/start") {
+		t.Error("start offered on a task in progress")
+	}
+
+	// From a page loaded before the task changed, nothing is done, and the
+	// task is shown as it is now.
+	f.want(mem.post("/tasks/WEB-1/transitions/defer", "version", "1"), 409,
+		"Someone else changed this task", "<dd>In Progress", `action="/tasks/WEB-1/transitions/pause"`)
+	f.want(mem.post("/tasks/WEB-1/transitions/restart", "version", "2"), 409, "does not apply")
+	f.want(mem.post("/tasks/WEB-1/transitions/finish", "version", "2"), 404)
+
+	if p := mem.post("/tasks/WEB-1/transitions/complete", "version", "2"); p.status != http.StatusSeeOther {
+		t.Fatalf("complete: %d %s", p.status, p.body)
+	}
+	p = mem.get("/tasks/WEB-1")
+	f.want(p, 200, "<dd>Complete (Done)")
+	if strings.Contains(p.body, "/transitions/") {
+		t.Error("transition offered on a complete task")
+	}
+
+	view := f.login("view")
+	if _, err := f.svc.UpdateTask("mem", "WEB-1", 3, service.TaskPatch{State: ptr(model.TaskPaused)}); err != nil {
+		t.Fatal(err)
+	}
+	if p := view.get("/tasks/WEB-1"); strings.Contains(p.body, "/transitions/") {
+		t.Error("viewer sees transition buttons")
+	}
+	f.want(view.post("/tasks/WEB-1/transitions/restart", "version", "4"), 403)
+}
+
 func TestLinks(t *testing.T) {
 	f := newFixture(t)
 	for _, title := range []string{"Sign the binaries", "Get a signing key", "Old idea"} {

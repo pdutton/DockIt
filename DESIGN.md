@@ -508,6 +508,30 @@ they are only added or removed, and adding one that exists already does nothing.
 each link in one of its tasks, which makes the other end hard to find for outside readers; and in both,
 which needs two file writes that cannot be atomic together.)
 
+## Quick Transitions
+
+The common state changes are offered as one-step actions, built into the implementation:
+
+| Action     | Label    | From          | To                          |
+|------------|----------|---------------|-----------------------------|
+| `start`    | Start    | `new`         | `in_progress`               |
+| `defer`    | Defer    | `new`         | `deferred`                  |
+| `complete` | Complete | `in_progress` | `complete`, substate `done` |
+| `pause`    | Pause    | `in_progress` | `paused`                    |
+| `restart`  | Restart  | `paused`      | `in_progress`               |
+
+- An action applies only to a task in its from state.  It sets the state and substate and nothing
+  else, through the same rules as any other task edit: the same permissions and validation, and it
+  updates `version` and `modified`.
+- Transitions are a shortcut, not a rule.  State changes stay unrestricted, and the edit form and
+  `PATCH` can still set any state.
+
+**Decided — a transition is an edit.**  It must name the task version it was based on and is
+rejected if the task has changed since, so the second of two concurrent edits is rejected, as the
+requirements say.  Comments and links do not change the version, so they never get in the way.
+(Rejected: checking only that the task is still in the from state, which would let a transition
+through after someone else's edit.)
+
 ## Web UI
 
 - Server-rendered pages: project list, project detail with its task
@@ -517,6 +541,10 @@ which needs two file writes that cannot be atomic together.)
   Depends on, and so on): the wording, then the other task's ID and title as one link, then its state
   as a pill coloured by state.  A complete task's line is dimmed.  Links are added with a relationship
   select and a task ID box, and each has a remove button.  Task lists do not show links.
+- The task page shows the [quick transitions](#quick-transitions) from the task's state as small
+  buttons beside it, for members and admins.  Each button's form carries the task's version.  A
+  click from a page loaded before the task changed does nothing, and the page is shown again as the
+  task is now, with a message.
 - Task lists can be filtered by state, owner and priority and sorted by priority or modified time.  This
   is cheap given the in-memory index.  Several states can be chosen at once; a priority shows tasks of
   that priority or higher (1 to n).  A list opened with no query shows every state but Complete and
@@ -548,6 +576,7 @@ GET    /api/v1/projects/{pid}/tasks             list, ?state=&owner=&priority= (
 POST   /api/v1/projects/{pid}/tasks             create; server assigns the ID
 GET    /api/v1/tasks/{tid}
 PATCH  /api/v1/tasks/{tid}                      update (If-Match)
+POST   /api/v1/tasks/{tid}/transitions/{action} quick transition (If-Match), no body
 
 GET    /api/v1/tasks/{tid}/comments             list, oldest first
 POST   /api/v1/tasks/{tid}/comments             add
@@ -571,12 +600,16 @@ GET    /api/v1/me/tokens                        list own tokens (metadata only)
 POST   /api/v1/me/tokens                        create; token returned once
 DELETE /api/v1/me/tokens/{id}                   revoke
 
-GET    /api/v1/enums                            states, substates, task types, URL types, link types, roles, display strings
+GET    /api/v1/enums                            states, substates, task types, URL types, link types, transitions, roles, display strings
 ```
 
 - `PATCH` bodies are JSON Merge Patch (RFC 7396).
 - JSON field names match the YAML field names, so the API and the files describe records the same way.
 - Enumerated values are sent as stable ids; `/enums` supplies display strings for clients that want them.
+- A [quick transition](#quick-transitions) takes no body and needs `If-Match`, as for `PATCH`, and
+  returns the task.  An unknown action is `404`.  A task not in the action's from state gets `409`
+  with code `wrong_state`.  `/enums` lists the actions as `task_transitions`, each with `id`,
+  `display`, `from`, `to` and, where `to` has substates, `substate`.
 - Errors use one shape: `{"error": {"code": "...", "message": "...", "field": "..."}}`.  A `412` adds
   `"current"`, the record as it is now, and its `ETag`.
 - Request bodies must be `application/json` (or `application/merge-patch+json`).  Besides being honest,
@@ -640,3 +673,4 @@ Timezone conversion and formatting is the job of the web interface / browser or 
 | 5 | Project ID case                        | Uppercase                                |
 | 6 | Web assets                             | Embedded in the binary; no override      |
 | 7 | Where links are stored                 | `links.yaml`, apart from any task        |
+| 8 | Is a quick transition version-checked? | Yes: it is an edit like any other        |

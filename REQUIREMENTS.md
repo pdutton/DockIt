@@ -184,6 +184,14 @@ friendly display string that may change over time.
 
 State transitions are unrestricted.
 
+Common transitions are also offered as quick actions, through both the web and REST interfaces.
+Each applies only to a task in its starting state.  They are only a shortcut: any state can still
+be set directly.
+
+- New: **Start** moves the task to In Progress, and **Defer** moves it to Deferred.
+- In Progress: **Complete** moves the task to Complete (Done), and **Pause** moves it to Paused.
+- Paused: **Restart** moves the task to In Progress.
+
 #### Substate
 
 Individual states may have sub-states.   If a state has sub-states, then the sub-state is required

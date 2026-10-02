@@ -212,6 +212,20 @@ func (a *API) updateTask(w http.ResponseWriter, r *http.Request, actor string) e
 	return writeRecord(w, http.StatusOK, t)
 }
 
+// transitionTask makes a quick transition.  It takes no body: the action is
+// in the path and the version in If-Match.
+func (a *API) transitionTask(w http.ResponseWriter, r *http.Request, actor string) error {
+	version, err := ifMatch(r)
+	if err != nil {
+		return err
+	}
+	t, err := a.svc.TransitionTask(actor, r.PathValue("tid"), version, r.PathValue("action"))
+	if err != nil {
+		return err
+	}
+	return writeRecord(w, http.StatusOK, t)
+}
+
 // Comments.
 
 type commentBody struct {
@@ -505,15 +519,16 @@ func (a *API) getEnums(w http.ResponseWriter, r *http.Request, actor string) err
 		subs[state] = enumValues(e)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"project_states": enumValues(model.ProjectStates),
-		"task_states":    enumValues(model.TaskStates),
-		"substates":      subs,
-		"task_types":     enumValues(model.TaskTypes),
-		"url_types":      enumValues(model.URLTypes),
-		"task_url_types": enumValues(model.TaskURLTypes),
-		"roles":          enumValues(model.Roles),
-		"link_types":     enumValues(model.LinkTypes),
-		"link_relations": linkRelations(),
+		"project_states":   enumValues(model.ProjectStates),
+		"task_states":      enumValues(model.TaskStates),
+		"substates":        subs,
+		"task_types":       enumValues(model.TaskTypes),
+		"url_types":        enumValues(model.URLTypes),
+		"task_url_types":   enumValues(model.TaskURLTypes),
+		"roles":            enumValues(model.Roles),
+		"link_types":       enumValues(model.LinkTypes),
+		"link_relations":   linkRelations(),
+		"task_transitions": taskTransitions(),
 	})
 	return nil
 }
@@ -532,6 +547,24 @@ func linkRelations() []linkRelation {
 	var out []linkRelation
 	for _, r := range model.Relations {
 		out = append(out, linkRelation{r.ID, r.Heading, r.Phrase, r.Type, r.Reverse})
+	}
+	return out
+}
+
+// taskTransition describes a quick transition: the action that
+// /tasks/{tid}/transitions/{action} takes, and what it does.
+type taskTransition struct {
+	ID       string `json:"id"`
+	Display  string `json:"display"` // the button label, such as "Start"
+	From     string `json:"from"`
+	To       string `json:"to"`
+	Substate string `json:"substate,omitempty"` // set with to, if it has substates
+}
+
+func taskTransitions() []taskTransition {
+	var out []taskTransition
+	for _, t := range model.Transitions {
+		out = append(out, taskTransition{t.ID, t.Display, t.From, t.To, t.Substate})
 	}
 	return out
 }

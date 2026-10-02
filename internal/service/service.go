@@ -31,6 +31,9 @@ var (
 	ErrExists = errors.New("already exists")
 	// ErrVersionRequired: an update did not say which version it was based on.
 	ErrVersionRequired = errors.New("version required")
+	// ErrWrongState: a transition was asked of a task that is not in the
+	// state the transition starts from.
+	ErrWrongState = errors.New("the task is not in the state this transition starts from")
 	// ErrBadCredentials: a login or token was not accepted.  It deliberately
 	// does not say why.
 	ErrBadCredentials = errors.New("invalid credentials")

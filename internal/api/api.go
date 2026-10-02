@@ -86,6 +86,7 @@ func (a *API) routes() {
 	h("POST "+Prefix+"/projects/{pid}/tasks", a.createTask)
 	h("GET "+Prefix+"/tasks/{tid}", a.getTask)
 	h("PATCH "+Prefix+"/tasks/{tid}", a.updateTask)
+	h("POST "+Prefix+"/tasks/{tid}/transitions/{action}", a.transitionTask)
 
 	h("GET "+Prefix+"/tasks/{tid}/comments", a.listComments)
 	h("POST "+Prefix+"/tasks/{tid}/comments", a.addComment)
@@ -240,6 +241,8 @@ func (a *API) fail(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, &apiError{http.StatusForbidden, "forbidden", "permission denied", ""})
 	case errors.Is(err, service.ErrExists):
 		writeError(w, &apiError{http.StatusConflict, "exists", "already exists", "id"})
+	case errors.Is(err, service.ErrWrongState):
+		writeError(w, &apiError{http.StatusConflict, "wrong_state", err.Error(), ""})
 	case errors.Is(err, service.ErrVersionRequired):
 		writeError(w, &apiError{http.StatusPreconditionRequired, "precondition_required",
 			"send If-Match with the ETag of the version this change is based on", ""})

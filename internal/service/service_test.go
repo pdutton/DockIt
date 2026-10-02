@@ -363,6 +363,68 @@ func TestUpdateTask(t *testing.T) {
 	wantInvalid(t, err, "owner")
 }
 
+func TestTransitionTask(t *testing.T) {
+	f := newFixture(t)
+	s := f.s
+	_, err := s.CreateTask("mem", "WEB", NewTask{Title: "T"})
+	f.ok(err)
+	_, err = s.CreateTask("mem", "WEB", NewTask{Title: "Later"})
+	f.ok(err)
+
+	_, err = s.TransitionTask("view", "WEB-1", 1, "start")
+	wantErr(t, err, ErrForbidden)
+	_, err = s.TransitionTask("mem", "WEB-9", 1, "start")
+	wantErr(t, err, ErrNotFound)
+	_, err = s.TransitionTask("mem", "WEB-1", 1, "finish")
+	wantErr(t, err, ErrNotFound)
+	_, err = s.TransitionTask("mem", "WEB-1", 0, "start")
+	wantErr(t, err, ErrVersionRequired)
+	_, err = s.TransitionTask("mem", "WEB-1", 1, "pause")
+	wantErr(t, err, ErrWrongState)
+
+	// A transition is an edit like any other, with the same version check.
+	f.tick()
+	task, err := s.TransitionTask("mem2", "WEB-1", 1, "start")
+	f.ok(err)
+	if task.State != model.TaskInProgress || task.Version != 2 || !task.Modified.Equal(f.clock) {
+		t.Errorf("started: %+v", task)
+	}
+	cur := wantConflict(t, func() error {
+		_, err := s.TransitionTask("mem", "WEB-1", 1, "start")
+		return err
+	}())
+	if cur.(*model.Task).Version != 2 {
+		t.Errorf("conflict carries %+v", cur)
+	}
+
+	for i, step := range []struct{ id, state, substate string }{
+		{"pause", model.TaskPaused, ""},
+		{"restart", model.TaskInProgress, ""},
+		{"complete", model.TaskComplete, model.SubstateDone},
+	} {
+		task, err = s.TransitionTask("mem", "WEB-1", 2+i, step.id)
+		f.ok(err)
+		if task.State != step.state || task.Substate != step.substate {
+			t.Errorf("%s: %+v", step.id, task)
+		}
+	}
+	// Nothing is offered on a complete task.
+	_, err = s.TransitionTask("mem", "WEB-1", 5, "restart")
+	wantErr(t, err, ErrWrongState)
+
+	task, err = s.TransitionTask("admin", "WEB-2", 1, "defer")
+	f.ok(err)
+	if task.State != model.TaskDeferred {
+		t.Errorf("deferred: %+v", task)
+	}
+
+	x := f.reload()
+	if t1, t2 := x.Task("WEB-1"), x.Task("WEB-2"); t1.State != model.TaskComplete || t1.Substate != model.SubstateDone ||
+		t1.Version != 5 || t2.State != model.TaskDeferred {
+		t.Errorf("on disk: %+v %+v", t1, t2)
+	}
+}
+
 func TestTaskVersionFields(t *testing.T) {
 	f := newFixture(t)
 	s := f.s
