@@ -1,0 +1,20 @@
+# DockIt settings, read when the service starts.  After changing them, run
+# `rc-service dockit restart`.  OPERATIONS.md describes each one.
+
+# The dataset directory.  Create it with `dockit init`, run as the dockit user.
+export DOCKIT_DATA=/var/lib/dockit
+
+# Address to listen on.  Use :8080 to accept connections from other machines.
+export DOCKIT_LISTEN=localhost:8080
+
+# The URL people use to reach DockIt.  An https URL marks the login cookie
+# Secure; set it when a reverse proxy terminates TLS.
+#export DOCKIT_BASE_URL=https://dockit.example.com
+
+# Serve HTTPS directly.  The dockit user must be able to read both files.
+#export DOCKIT_TLS_CERT=/etc/dockit/cert.pem
+#export DOCKIT_TLS_KEY=/etc/dockit/key.pem
+
+# DockIt's log.  /etc/logrotate.d/dockit rotates it; if you move it, change
+# the path there too.
+#error_log=/var/log/dockit/dockit.log

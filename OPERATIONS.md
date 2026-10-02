@@ -2,8 +2,10 @@
 
 Reference for running DockIt beyond the quick start in [README.md](README.md).
 The examples use rootless podman; docker works the same way. To run DockIt
-without a container, from the .deb package or by hand, see
-[Running as a systemd service](#running-as-a-systemd-service).
+without a container, see
+[Running as a systemd service](#running-as-a-systemd-service), from the .deb
+package or by hand, or, on Alpine Linux,
+[Running as an OpenRC service](#running-as-an-openrc-service).
 
 ## The container image
 
@@ -44,8 +46,9 @@ argument, or reads it from `$DOCKIT_DATA` if none is given. `serve` also takes:
 | `-base-url`          | `DOCKIT_BASE_URL` |                  | The URL people use to reach DockIt, such as `https://dockit.example.com`. An `https` URL marks the login cookie Secure; set it when a proxy terminates TLS. |
 | `-dev-insecure-user` |                   |                  | Development only: no authentication; every request acts as this user. Refuses to start unless listening on localhost. |
 
-For the systemd service, set them in `/etc/dockit/dockit.conf`. In a
-container, pass them as `-e` settings. The image sets two of them:
+For the systemd service, set them in `/etc/dockit/dockit.conf`, and for the
+OpenRC service in `/etc/conf.d/dockit`. In a container, pass them as `-e`
+settings. The image sets two of them:
 
 | Environment       | Image value | Why                                                |
 |-------------------|-------------|----------------------------------------------------|
@@ -94,8 +97,8 @@ podman run --rm -it --userns=keep-id:uid=65532,gid=65532 -v $DOCKIT_DIR:/data:Z 
 ## Upgrading
 
 A new version of DockIt upgrades the dataset when `serve` starts, in place,
-and logs the change (`podman logs dockit`, or `journalctl -u dockit` for the
-systemd service):
+and logs the change (`podman logs dockit`, `journalctl -u dockit` for the
+systemd service, or `/var/log/dockit/dockit.log` for the OpenRC service):
 
 ```
 level=INFO msg="dataset format updated" dataset=/data from=2.0 to=2.1
@@ -300,6 +303,99 @@ ReadWritePaths=/srv/dockit
 
 To listen on a port below 1024, add `AmbientCapabilities=CAP_NET_BIND_SERVICE`
 and `CapabilityBoundingSet=CAP_NET_BIND_SERVICE` the same way.
+
+## Running as an OpenRC service
+
+On Alpine Linux, DockIt can run as an OpenRC service, without a container.
+DockIt runs as the `dockit` user, keeps its dataset in `/var/lib/dockit`, reads
+its [settings](#settings) from `/etc/conf.d/dockit`, and logs to
+`/var/log/dockit/dockit.log`.
+
+The commands use doas, which setup-alpine sets up for the admin user it
+creates; sudo works the same way. As root, leave out `doas`, and run the
+`dockit` commands as the `dockit` user with su instead, such as
+`su -s /bin/sh -c 'dockit check /var/lib/dockit' dockit`.
+
+### Installing by hand
+
+`packaging/openrc/` holds the service's files:
+
+| File                                | Install as                | Purpose                                     |
+|-------------------------------------|---------------------------|---------------------------------------------|
+| `packaging/openrc/dockit.initd`     | `/etc/init.d/dockit`      | Runs `dockit serve` as the `dockit` user, under supervise-daemon |
+| `packaging/openrc/dockit.confd`     | `/etc/conf.d/dockit`      | The [settings](#settings), as exported `DOCKIT_*` variables, and the log file |
+| `packaging/openrc/dockit.logrotate` | `/etc/logrotate.d/dockit` | Rotates the log, if logrotate is installed  |
+
+Build `dockit` as in [TESTING.md](TESTING.md#build-and-test), with
+`CGO_ENABLED=0` if you build it on another distribution, so that it does not
+need that distribution's C library. Then, from the repository, install it and
+the files, and create the user and the directory:
+
+```sh
+doas install -m 0755 dockit /usr/bin/dockit
+doas install -m 0755 packaging/openrc/dockit.initd /etc/init.d/dockit
+doas install -m 0644 packaging/openrc/dockit.confd /etc/conf.d/dockit
+doas install -D -m 0644 packaging/openrc/dockit.logrotate /etc/logrotate.d/dockit
+doas addgroup -S dockit
+doas adduser -S -D -H -h /var/lib/dockit -s /sbin/nologin -G dockit -g DockIt dockit
+doas install -d -m 0750 -o dockit -g dockit /var/lib/dockit
+```
+
+DockIt listens on `localhost:8080`; change that, and any other setting, in
+`/etc/conf.d/dockit`. Create the dataset as the `dockit` user, so that user
+owns the files, and note the one-time password:
+
+```sh
+doas -u dockit dockit init -admin pdutton -name "Peter Dutton" -email peter@example.com /var/lib/dockit
+```
+
+Start DockIt, now and at every boot:
+
+```sh
+doas rc-update add dockit default
+doas rc-service dockit start
+```
+
+To upgrade, stop DockIt, copy the dataset (see [Upgrading](#upgrading)),
+install the new binary, and start it again:
+
+```sh
+doas rc-service dockit stop
+doas cp -a /var/lib/dockit /var/lib/dockit.before-upgrade
+doas install -m 0755 dockit /usr/bin/dockit
+doas rc-service dockit start
+```
+
+### Managing the OpenRC service
+
+- `rc-service dockit status` shows whether DockIt is running, and
+  `/var/log/dockit/dockit.log` is its log.
+- `rc-service dockit start` waits until DockIt is listening. If it cannot
+  start, such as before `init`, with dataset errors, while another instance
+  holds the lock, or when the port is in use, `start` fails and shows the error
+  from the log.
+- `rc-service dockit stop` shuts DockIt down cleanly, releasing the lock. It
+  is killed if it takes more than 15 seconds.
+- After a crash, supervise-daemon starts DockIt again, which removes the lock
+  the crash left behind (see [Stale locks](#stale-locks)). It gives up after
+  more than `respawn_max` crashes in `respawn_period`; Alpine's
+  `/etc/rc.conf` sets 5 in 30 minutes.
+- Run the other commands as `dockit` too, such as
+  `doas -u dockit dockit check /var/lib/dockit`.
+- logrotate, once installed (`doas apk add logrotate`), rotates the log
+  weekly from crond and keeps four, as its `/etc/logrotate.conf` says. Until
+  then the log keeps growing.
+
+To keep the dataset somewhere else, create the directory owned by `dockit`,
+with mode 0750, and set `DOCKIT_DATA` in `/etc/conf.d/dockit`. To keep the log
+somewhere else, set `error_log` there, and change the path in
+`/etc/logrotate.d/dockit` too.
+
+To listen on a port below 1024, add this to `/etc/conf.d/dockit`:
+
+```sh
+capabilities="^cap_net_bind_service"
+```
 
 ## The REST API
 

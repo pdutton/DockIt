@@ -1,0 +1,68 @@
+#!/sbin/openrc-run
+# DockIt as an OpenRC service.  See "Running as an OpenRC service" in
+# OPERATIONS.md.  Change settings in /etc/conf.d/dockit.
+
+description="DockIt task tracker"
+
+command=/usr/bin/dockit
+command_args=serve
+command_user=dockit:dockit
+supervisor=supervise-daemon
+# serve shuts down within 10 seconds of SIGTERM.
+retry=TERM/15/KILL/5
+no_new_privs=yes
+
+# DockIt logs to standard error, and OpenRC has no journal to catch it.
+: "${error_log:=/var/log/dockit/dockit.log}"
+: "${output_log:=$error_log}"
+
+# /etc/conf.d/dockit exports the settings; this is the default dataset.
+export DOCKIT_DATA="${DOCKIT_DATA:-/var/lib/dockit}"
+
+depend() {
+	need net
+	after firewall netmount
+}
+
+start_pre() {
+	# supervise-daemon opens the log as dockit.
+	checkpath -d -m 0750 -o dockit:dockit /var/log/dockit
+	checkpath -f -m 0640 -o dockit:dockit "$error_log"
+	if [ ! -e "$DOCKIT_DATA/dockit.yaml" ]; then
+		eerror "$DOCKIT_DATA holds no DockIt dataset.  Create it as the dockit user:"
+		eerror "  doas -u dockit dockit init -admin <user> -name \"<full name>\" -email <address> $DOCKIT_DATA"
+		return 1
+	fi
+	# Where this start's lines in the log begin, for start_post.
+	log_start=$(stat -c %s "$error_log" 2>/dev/null || echo 0)
+}
+
+# Wait until serve logs that it is listening, so that `rc-service dockit start`
+# fails, and says why, if serve cannot start.  supervise-daemon's notify= cannot
+# do this: in OpenRC 0.63 its socket is writable only by root, and fd:N breaks
+# the respawn after a crash.
+start_post() {
+	local pid i=0
+	while [ $i -lt 300 ]; do
+		[ -z "$pid" ] && pid=$(service_get_value child_pid)
+		if _log_since_start | grep -q 'msg="DockIt serving"'; then
+			return 0
+		fi
+		if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
+			eerror "DockIt did not start:"
+			_log_since_start | tail -n 20 | while IFS= read -r line; do
+				eerror "  $line"
+			done
+			# Stop supervise-daemon, so that it does not start serve again.
+			supervise-daemon "$RC_SVCNAME" --stop >/dev/null 2>&1
+			return 1
+		fi
+		sleep 0.2
+		i=$((i + 1))
+	done
+	ewarn "DockIt is not listening after 60 seconds; see $error_log"
+}
+
+_log_since_start() {
+	tail -c +$((log_start + 1)) "$error_log" 2>/dev/null
+}

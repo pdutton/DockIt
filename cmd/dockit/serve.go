@@ -157,6 +157,7 @@ func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- 
 	if certFile != "" {
 		scheme = "https"
 	}
+	// The OpenRC script (packaging/openrc/dockit.initd) waits for this message.
 	log.Info("DockIt serving", "dataset", dir, "url", scheme+"://"+ln.Addr().String()+"/")
 	if err := sdNotify(cfg.notifySocket, "READY=1"); err != nil {
 		log.Warn("telling systemd DockIt is ready", "err", err)

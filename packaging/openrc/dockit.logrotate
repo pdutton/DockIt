@@ -1,0 +1,9 @@
+# Rotates DockIt's log, if logrotate is installed (`apk add logrotate`).
+# DockIt keeps the file open, so copy it and empty it in place.  If you move
+# the log (error_log in /etc/conf.d/dockit), change the path here too.
+/var/log/dockit/dockit.log {
+	copytruncate
+	missingok
+	notifempty
+	su dockit dockit
+}
