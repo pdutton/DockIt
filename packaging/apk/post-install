@@ -1,0 +1,35 @@
+#!/bin/sh
+# post-install for the DockIt APK.  apk runs it after a first install, and
+# post-upgrade after an upgrade.  As is usual on Alpine, it neither starts
+# DockIt nor adds it to a runlevel.
+
+if [ ! -d /var/lib/dockit ]; then
+	install -d -m 0750 -o dockit -g dockit /var/lib/dockit
+fi
+
+if [ -e /var/lib/dockit/dockit.yaml ]; then
+	cat <<'EOF2'
+DockIt is installed.  /var/lib/dockit already holds a dataset; start DockIt,
+now and at every boot, with
+
+  doas rc-update add dockit default
+  doas rc-service dockit start
+EOF2
+else
+	cat <<'EOF2'
+DockIt is installed.  First create its dataset as the dockit user, and note
+the one-time password this prints:
+
+  doas -u dockit dockit init -admin <user> -name "<full name>" -email <address> /var/lib/dockit
+
+As root, run it with `su -s /bin/sh -c '<command>' dockit` instead.  Then
+start DockIt, now and at every boot:
+
+  doas rc-update add dockit default
+  doas rc-service dockit start
+
+By default it listens on localhost:8080.  Change that, and the other
+settings, in /etc/conf.d/dockit.
+EOF2
+fi
+exit 0

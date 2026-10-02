@@ -1,0 +1,7 @@
+#!/bin/sh
+# pre-install for the DockIt APK: the dockit user and group, which run the
+# service and own the dataset.  Either may exist already, from an earlier
+# install.
+addgroup -S dockit 2>/dev/null
+adduser -S -D -H -h /var/lib/dockit -s /sbin/nologin -G dockit -g DockIt dockit 2>/dev/null
+exit 0

@@ -78,10 +78,27 @@ sudo systemctl start dockit
 Its settings are in `/etc/dockit/dockit.conf`. To upgrade, and for the rest,
 see [Running as a systemd service](OPERATIONS.md#running-as-a-systemd-service).
 
+## Install the APK package
+
+On Alpine Linux, DockIt can run as an OpenRC service. Install the package from
+a [release](https://github.com/pdutton/DockIt/releases), create the dataset as
+the `dockit` user, noting the one-time password, and start DockIt. The package
+is not signed, so apk needs `--allow-untrusted`:
+
+```sh
+doas apk add --allow-untrusted ./dockit_2.2.8-r0_x86_64.apk
+doas -u dockit dockit init -admin pdutton -name "Peter Dutton" -email peter@example.com /var/lib/dockit
+doas rc-update add dockit default
+doas rc-service dockit start
+```
+
+Its settings are in `/etc/conf.d/dockit`. To upgrade, and for the rest, see
+[Running as an OpenRC service](OPERATIONS.md#running-as-an-openrc-service).
+
 ## More
 
 - [OPERATIONS.md](OPERATIONS.md): settings, named volumes, running as a
   systemd or OpenRC service, restore, stale locks, and caring for your data.
 - [TESTING.md](TESTING.md): running DockIt without a container, developing
-  it, and building the .deb packages.
+  it, and building the .deb and APK packages.
 - [DESIGN.md](DESIGN.md): architecture, dataset format, and the REST API.
