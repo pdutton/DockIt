@@ -1,7 +1,7 @@
 # Installing DockIt in a Container
 
-This file documents the steps to build install DockIt on a Linux
-host running podman using a remote NFS mount to host the dDockIt
+This file documents the steps to install DockIt on a Linux
+host running podman using a remote NFS mount to host the DockIt
 dataset.
 
 ## Device Setup (Ubuntu)
@@ -16,14 +16,14 @@ Check out github.com/pdutton/DockIt and build the container
 from that directory:
 
 ```
-git clone https://github.com/pdutton/DockIt.git && cd Dockit
+git clone https://github.com/pdutton/DockIt.git && cd DockIt
 
 VERSION=$(git describe --tags --always --dirty)
 sudo podman build --build-arg VERSION=$VERSION -t dockit:$VERSION .
 sudo podman tag dockit:$VERSION dockit:latest
 ```
 
-(i) Replace this with a docker hub location when available.
+TODO: Replace this with a docker hub location when available.
 
 ## Using Quadlets
 
@@ -48,9 +48,10 @@ Create /etc/containers/systemd/dockit.container:
 [Unit]
 Description=DockIt container using NFS volume
 After=network-online.target
+Wants=network-online.target
 
 [Container]
-Image=dockit:latest
+Image=localhost/dockit:latest
 ContainerName=dockit
 Volume=dockit.volume:/data
 PublishPort=8080:8080
