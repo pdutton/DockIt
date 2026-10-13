@@ -106,12 +106,27 @@ type projectFormData struct {
 	Conflict *model.Project
 }
 
+// projectRow is a project in the project list, with its number of open
+// tasks: those its task list shows when first opened.
+type projectRow struct {
+	*model.Project
+	Open int
+}
+
 func (w *Web) projectList(rw http.ResponseWriter, r *http.Request, c *ctx) error {
 	ps, err := w.svc.Projects(c.me.ID)
 	if err != nil {
 		return err
 	}
-	w.render(rw, r, c, http.StatusOK, "projects", "Projects", ps)
+	open, err := w.svc.TaskCounts(c.me.ID, openStates())
+	if err != nil {
+		return err
+	}
+	rows := make([]projectRow, len(ps))
+	for i, p := range ps {
+		rows[i] = projectRow{p, open[p.ID]}
+	}
+	w.render(rw, r, c, http.StatusOK, "projects", "Projects", rows)
 	return nil
 }
 

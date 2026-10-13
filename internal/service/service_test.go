@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -709,6 +710,46 @@ func TestTaskListing(t *testing.T) {
 	}
 	_, err = s.Tasks("view", "NOPE", TaskFilter{}, SortByID)
 	wantErr(t, err, ErrNotFound)
+}
+
+func TestTaskCounts(t *testing.T) {
+	f := newFixture(t)
+	s := f.s
+	for _, id := range []string{"API", "DOC"} {
+		_, err := s.CreateProject("admin", NewProject{ID: id, Name: id})
+		f.ok(err)
+	}
+	for _, in := range []struct {
+		pid, state, substate string
+	}{
+		{"WEB", model.TaskNew, ""},
+		{"WEB", model.TaskPaused, ""},
+		{"WEB", model.TaskDeferred, ""},
+		{"WEB", model.TaskComplete, model.SubstateDone},
+		{"API", model.TaskInProgress, ""},
+		{"API", model.TaskComplete, model.SubstateRejected},
+	} {
+		_, err := s.CreateTask("mem", in.pid, NewTask{Title: "t", State: in.state, Substate: in.substate})
+		f.ok(err)
+	}
+
+	for _, tc := range []struct {
+		states []string
+		want   map[string]int
+	}{
+		{[]string{model.TaskNew, model.TaskInProgress, model.TaskPaused}, map[string]int{"WEB": 2, "API": 1}},
+		{[]string{model.TaskComplete}, map[string]int{"WEB": 1, "API": 1}},
+		{[]string{model.TaskDeferred}, map[string]int{"WEB": 1}},
+		{nil, map[string]int{}},
+	} {
+		got, err := s.TaskCounts("view", tc.states)
+		f.ok(err)
+		if !maps.Equal(got, tc.want) {
+			t.Errorf("%v: got %v, want %v", tc.states, got, tc.want)
+		}
+	}
+	_, err := s.TaskCounts("nobody", []string{model.TaskNew})
+	wantErr(t, err, ErrForbidden)
 }
 
 func TestComments(t *testing.T) {

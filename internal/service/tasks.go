@@ -82,6 +82,17 @@ func (s *Service) Tasks(actor, pid string, f TaskFilter, order TaskSort) ([]*mod
 	return tasks, nil
 }
 
+// TaskCounts returns the number of tasks in each project whose state is one
+// of states.  Projects with no such tasks are left out.
+func (s *Service) TaskCounts(actor string, states []string) (map[string]int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if _, err := s.authorize(actor, anyone); err != nil {
+		return nil, err
+	}
+	return s.x.TaskCounts(states), nil
+}
+
 // Task returns task tid.
 func (s *Service) Task(actor, tid string) (*model.Task, error) {
 	s.mu.RLock()

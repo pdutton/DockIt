@@ -316,6 +316,34 @@ func TestProjects(t *testing.T) {
 	}
 }
 
+func TestProjectOpenTaskCounts(t *testing.T) {
+	f := newFixture(t)
+	if _, err := f.svc.CreateProject("admin", service.NewProject{ID: "API", Name: "API", State: model.ProjectActive}); err != nil {
+		t.Fatal(err)
+	}
+	for _, in := range []service.NewTask{
+		{Title: "a"},
+		{Title: "b", State: model.TaskInProgress},
+		{Title: "c", State: model.TaskPaused},
+		{Title: "d", State: model.TaskDeferred},
+		{Title: "e", State: model.TaskComplete, Substate: model.SubstateDone},
+	} {
+		if _, err := f.svc.CreateTask("mem", "WEB", in); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	p := f.login("view").get("/")
+	f.want(p, 200, `<th class="num">Open tasks</th>`)
+	// Each project's count is the first after its link.
+	for pid, want := range map[string]string{"WEB": "3", "API": "0"} {
+		re := regexp.MustCompile(`(?s)<a href="/projects/` + pid + `">.*?<td class="num">(\d+)</td>`)
+		if m := re.FindStringSubmatch(p.body); m == nil || m[1] != want {
+			t.Errorf("%s open tasks = %v, want %s:\n%s", pid, m, want, p.body)
+		}
+	}
+}
+
 func TestTasksAndComments(t *testing.T) {
 	f := newFixture(t)
 	mem := f.login("mem")

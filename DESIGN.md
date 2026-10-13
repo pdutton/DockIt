@@ -537,6 +537,8 @@ through after someone else's edit.)
 - Server-rendered pages: project list, project detail with its task
   list, task detail with links, comments and edit form, user admin, and "my account" for password and
   tokens.
+- The project list shows each project's number of open tasks: those in any state but Complete and
+  Deferred, the ones its task list shows when first opened.  Counting walks the in-memory index once.
 - A task's links are listed one per line, ordered by their wording from that task (Blocks, Blocked by,
   Depends on, and so on): the wording, then the other task's ID and title as one link, then its state
   as a pill coloured by state.  A complete task's line is dimmed.  Links are added with a relationship
