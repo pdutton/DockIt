@@ -5,6 +5,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -694,22 +695,88 @@ func TestTaskListing(t *testing.T) {
 		order TaskSort
 		want  string
 	}{
-		{TaskFilter{}, SortByID, "WEB-1 WEB-2 WEB-3 WEB-4"},
-		{TaskFilter{}, SortByPriority, "WEB-2 WEB-4 WEB-1 WEB-3"},
-		{TaskFilter{}, SortByModified, "WEB-1 WEB-4 WEB-3 WEB-2"},
-		{TaskFilter{Owner: "mem"}, SortByID, "WEB-1 WEB-3 WEB-4"},
-		{TaskFilter{States: []string{model.TaskPaused}}, SortByID, "WEB-3"},
-		{TaskFilter{States: []string{model.TaskPaused, model.TaskNew}, Owner: "mem"}, SortByID, "WEB-1 WEB-3 WEB-4"},
-		{TaskFilter{Priority: 3, Owner: "mem"}, SortByID, "WEB-1 WEB-3"},
-		{TaskFilter{Priority: 2, PriorityOrHigher: true}, SortByID, "WEB-2 WEB-4"},
-		{TaskFilter{Priority: 1, PriorityOrHigher: true}, SortByID, "WEB-2"},
+		{TaskFilter{}, TaskSort{}, "WEB-1 WEB-2 WEB-3 WEB-4"},
+		{TaskFilter{}, TaskSort{By: SortByPriority}, "WEB-2 WEB-4 WEB-1 WEB-3"},
+		{TaskFilter{}, TaskSort{By: SortByModified}, "WEB-1 WEB-4 WEB-3 WEB-2"},
+		{TaskFilter{Owner: "mem"}, TaskSort{}, "WEB-1 WEB-3 WEB-4"},
+		{TaskFilter{States: []string{model.TaskPaused}}, TaskSort{}, "WEB-3"},
+		{TaskFilter{States: []string{model.TaskPaused, model.TaskNew}, Owner: "mem"}, TaskSort{}, "WEB-1 WEB-3 WEB-4"},
+		{TaskFilter{Priority: 3, Owner: "mem"}, TaskSort{}, "WEB-1 WEB-3"},
+		{TaskFilter{Priority: 2, PriorityOrHigher: true}, TaskSort{}, "WEB-2 WEB-4"},
+		{TaskFilter{Priority: 1, PriorityOrHigher: true}, TaskSort{}, "WEB-2"},
 	} {
 		if got := ids(s.Tasks("view", "WEB", tc.f, tc.order)); got != tc.want {
 			t.Errorf("%+v %v: got %s, want %s", tc.f, tc.order, got, tc.want)
 		}
 	}
-	_, err = s.Tasks("view", "NOPE", TaskFilter{}, SortByID)
+	_, err = s.Tasks("view", "NOPE", TaskFilter{}, TaskSort{})
 	wantErr(t, err, ErrNotFound)
+}
+
+func TestTaskSorting(t *testing.T) {
+	f := newFixture(t)
+	s := f.s
+	for _, in := range []NewTask{
+		{Title: "banana", Owner: "mem", Priority: 3},
+		{Title: "Apple", Owner: "mem2", Priority: 2, State: model.TaskComplete, Substate: model.SubstateRejected},
+		{Title: "cherry", Owner: "mem", Priority: 3, State: model.TaskPaused},
+		{Title: "apple pie", Owner: "admin", Priority: 1, State: model.TaskComplete, Substate: model.SubstateDone},
+		{Title: "Banana", Owner: "mem2", Priority: 3, State: model.TaskInProgress},
+	} {
+		f.tick()
+		_, err := s.CreateTask("mem", "WEB", in)
+		f.ok(err)
+	}
+	f.tick()
+	_, err := s.UpdateTask("mem", "WEB-2", 1, TaskPatch{Description: ptr("newest")})
+	f.ok(err)
+
+	// Ties stay in task number order both ways round.
+	for _, tc := range []struct {
+		by            TaskSortKey
+		want, reverse string
+	}{
+		{SortByID, "1 2 3 4 5", "5 4 3 2 1"},
+		{SortByTitle, "2 4 1 5 3", "3 1 5 4 2"},
+		{SortByOwner, "4 1 3 2 5", "2 5 1 3 4"},
+		{SortByState, "1 5 3 4 2", "2 4 3 5 1"},
+		{SortByPriority, "4 2 1 3 5", "1 3 5 2 4"},
+		{SortByModified, "2 5 4 3 1", "1 3 4 5 2"},
+	} {
+		for _, rev := range []bool{false, true} {
+			tasks, err := s.Tasks("view", "WEB", TaskFilter{}, TaskSort{By: tc.by, Reverse: rev})
+			f.ok(err)
+			var got []string
+			for _, t := range tasks {
+				got = append(got, strings.TrimPrefix(t.ID, "WEB-"))
+			}
+			want := tc.want
+			if rev {
+				want = tc.reverse
+			}
+			if g := strings.Join(got, " "); g != want {
+				t.Errorf("by %d, reverse %v: got %s, want %s", tc.by, rev, g, want)
+			}
+		}
+	}
+}
+
+func TestCompareStatesUnknown(t *testing.T) {
+	tasks := []*model.Task{
+		{ID: "someday", State: "someday"},
+		{ID: "complete/odd", State: model.TaskComplete, Substate: "odd"},
+		{ID: "new", State: model.TaskNew},
+		{ID: "later", State: "later"},
+		{ID: "complete/done", State: model.TaskComplete, Substate: model.SubstateDone},
+	}
+	slices.SortStableFunc(tasks, compareStates)
+	var got []string
+	for _, t := range tasks {
+		got = append(got, t.ID)
+	}
+	if g, want := strings.Join(got, " "), "new complete/done complete/odd later someday"; g != want {
+		t.Errorf("got %s, want %s", g, want)
+	}
 }
 
 func TestTaskCounts(t *testing.T) {

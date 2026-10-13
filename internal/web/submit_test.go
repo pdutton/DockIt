@@ -25,7 +25,7 @@ func (b *browser) submissionKey(path string) string {
 
 func (f *fixture) taskCount() int {
 	f.t.Helper()
-	ts, err := f.svc.Tasks("admin", "WEB", service.TaskFilter{}, service.SortByID)
+	ts, err := f.svc.Tasks("admin", "WEB", service.TaskFilter{}, service.TaskSort{})
 	if err != nil {
 		f.t.Fatal(err)
 	}

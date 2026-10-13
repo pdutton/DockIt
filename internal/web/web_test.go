@@ -433,6 +433,73 @@ func TestTasksAndComments(t *testing.T) {
 	f.want(view.get("/projects/WEB/tasks/new"), 403)
 }
 
+func TestTaskListSorting(t *testing.T) {
+	f := newFixture(t)
+	for _, in := range []service.NewTask{
+		{Title: "beta", Priority: 3},
+		{Title: "alpha", Priority: 1},
+		{Title: "gamma", Priority: 2, State: model.TaskComplete, Substate: model.SubstateDone},
+	} {
+		if _, err := f.svc.CreateTask("mem", "WEB", in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	b := f.login("view")
+	// order checks that the page lists exactly the tasks ids, in that order.
+	order := func(p page, ids ...string) {
+		t.Helper()
+		last := -1
+		for _, id := range ids {
+			i := strings.Index(p.body, `href="/tasks/`+id+`"`)
+			if i < last {
+				t.Errorf("%s out of order, want %v:\n%s", id, ids, p.body)
+			}
+			last = i
+		}
+		if n := strings.Count(p.body, `href="/tasks/`); n != 2*len(ids) { // ID and title links
+			t.Errorf("%d task links, want %d:\n%s", n, 2*len(ids), p.body)
+		}
+	}
+
+	// First opened: by number, showing open tasks.  The headings keep
+	// that filter, and the ID heading reverses the sort.
+	p := b.get("/projects/WEB")
+	order(p, "WEB-1", "WEB-2")
+	const open = "state=new&amp;state=in_progress&amp;state=paused"
+	f.want(p, 200, `<th aria-sort="ascending"><a href="?reverse=1&amp;sort=id&amp;`+open+`">ID</a></th>`,
+		`<th class="title"><a href="?sort=title&amp;`+open+`">Title</a></th>`,
+		`<th><a href="?sort=modified&amp;`+open+`">Modified</a></th>`,
+		`<input type="hidden" name="sort" value="id">`)
+
+	// One click sorts by title; a second reverses it.
+	p = b.get("/projects/WEB?sort=title&state=new&state=in_progress&state=paused")
+	order(p, "WEB-2", "WEB-1")
+	f.want(p, 200, `<th class="title" aria-sort="ascending"><a href="?reverse=1&amp;sort=title&amp;`+open+`">Title</a></th>`,
+		`<th><a href="?sort=id&amp;`+open+`">ID</a></th>`, `<input type="hidden" name="sort" value="title">`)
+	if strings.Contains(p.body, `name="reverse"`) {
+		t.Error("reverse kept by the form when not reversed")
+	}
+	p = b.get("/projects/WEB?reverse=1&sort=title&state=new&state=in_progress&state=paused")
+	order(p, "WEB-1", "WEB-2")
+	f.want(p, 200, `<th class="title" aria-sort="descending"><a href="?sort=title&amp;`+open+`">Title</a></th>`,
+		`<input type="hidden" name="reverse" value="1">`)
+
+	// Most recent first, so the first click is descending.
+	f.want(b.get("/projects/WEB?sort=modified"), 200, `<th aria-sort="descending"><a href="?reverse=1&amp;sort=modified">`)
+	f.want(b.get("/projects/WEB?sort=modified&reverse=1"), 200, `<th aria-sort="ascending"><a href="?sort=modified">`)
+
+	// Every state, with owner and priority filters, kept by the headings.
+	p = b.get("/projects/WEB?owner=mem&priority=2&sort=priority")
+	order(p, "WEB-2", "WEB-3")
+	f.want(p, 200, `<th aria-sort="ascending"><a href="?owner=mem&amp;priority=2&amp;reverse=1&amp;sort=priority">Priority</a></th>`,
+		`<th><a href="?owner=mem&amp;priority=2&amp;sort=state">State</a></th>`)
+
+	// An unknown sort is by number.
+	p = b.get("/projects/WEB?sort=colour&reverse=1")
+	order(p, "WEB-3", "WEB-2", "WEB-1")
+	f.want(p, 200, `<th aria-sort="descending"><a href="?sort=id">ID</a></th>`)
+}
+
 func TestTransitions(t *testing.T) {
 	f := newFixture(t)
 	if _, err := f.svc.CreateTask("mem", "WEB", service.NewTask{Title: "Sign the binaries"}); err != nil {

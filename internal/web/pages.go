@@ -3,7 +3,9 @@ package web
 import (
 	"cmp"
 	"errors"
+	"maps"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -200,13 +202,77 @@ type projectViewData struct {
 	Tasks   []*model.Task
 	Users   []*model.User
 	Filter  service.TaskFilter
-	Sort    string
+	Sort    string // the Sort of the column the list is sorted by
+	Reverse bool
 }
 
 // StateShown reports whether the filter includes tasks in state id.  No
 // states means every state.
 func (d projectViewData) StateShown(id string) bool {
 	return len(d.Filter.States) == 0 || slices.Contains(d.Filter.States, id)
+}
+
+// taskColumn is a column of the task list.  Clicking its heading sorts the
+// list by it.
+type taskColumn struct {
+	Sort  string // value of the sort query parameter
+	Label string
+	Class string
+	by    service.TaskSortKey
+	// descending is whether the column's values go down the page before the
+	// sort is reversed: most recent first, for times.
+	descending bool
+}
+
+// taskColumns are the task list's columns, in order.  The first is the
+// default sort.
+var taskColumns = []taskColumn{
+	{Sort: "id", Label: "ID", by: service.SortByID},
+	{Sort: "title", Label: "Title", Class: "title", by: service.SortByTitle},
+	{Sort: "owner", Label: "Owner", by: service.SortByOwner},
+	{Sort: "state", Label: "State", by: service.SortByState},
+	{Sort: "priority", Label: "Priority", by: service.SortByPriority},
+	{Sort: "modified", Label: "Modified", by: service.SortByModified, descending: true},
+}
+
+// taskHeading is a task list column heading.
+type taskHeading struct {
+	taskColumn
+	Link  string // sorts by the column, keeping the filter
+	Order string // aria-sort: ascending or descending, or "" if not sorted by this column
+}
+
+// Headings returns the task list's column headings.  Each links to the list
+// sorted by its column, except that the column the list is already sorted by
+// links to the list sorted the other way round.
+func (d projectViewData) Headings() []taskHeading {
+	filter := url.Values{"state": d.Filter.States}
+	if d.Filter.Owner != "" {
+		filter.Set("owner", d.Filter.Owner)
+	}
+	if d.Filter.Priority != 0 {
+		filter.Set("priority", strconv.Itoa(d.Filter.Priority))
+	}
+	hs := make([]taskHeading, len(taskColumns))
+	for i, col := range taskColumns {
+		q := maps.Clone(filter)
+		// The sort parameter also keeps the query from being empty, which
+		// would mean a list first opened, showing only open tasks.
+		q.Set("sort", col.Sort)
+		h := taskHeading{taskColumn: col}
+		if col.Sort == d.Sort {
+			if !d.Reverse {
+				q.Set("reverse", "1")
+			}
+			h.Order = "ascending"
+			if col.descending != d.Reverse {
+				h.Order = "descending"
+			}
+		}
+		h.Link = "?" + q.Encode()
+		hs[i] = h
+	}
+	return hs
 }
 
 // openStates are the states a task list shows when first opened.
@@ -234,14 +300,14 @@ func (w *Web) projectView(rw http.ResponseWriter, r *http.Request, c *ctx) error
 	if r.URL.RawQuery == "" {
 		f.States = openStates()
 	}
-	order := service.SortByID
-	switch q.Get("sort") {
-	case "priority":
-		order = service.SortByPriority
-	case "modified":
-		order = service.SortByModified
+	col := taskColumns[0]
+	for _, tc := range taskColumns {
+		if tc.Sort == q.Get("sort") {
+			col = tc
+		}
 	}
-	tasks, err := w.svc.Tasks(c.me.ID, p.ID, f, order)
+	reverse := q.Get("reverse") == "1"
+	tasks, err := w.svc.Tasks(c.me.ID, p.ID, f, service.TaskSort{By: col.by, Reverse: reverse})
 	if err != nil {
 		return err
 	}
@@ -250,7 +316,7 @@ func (w *Web) projectView(rw http.ResponseWriter, r *http.Request, c *ctx) error
 		return err
 	}
 	w.render(rw, r, c, http.StatusOK, "project", p.Name,
-		projectViewData{Project: p, Tasks: tasks, Users: users, Filter: f, Sort: q.Get("sort")})
+		projectViewData{Project: p, Tasks: tasks, Users: users, Filter: f, Sort: col.Sort, Reverse: reverse})
 	return nil
 }
 

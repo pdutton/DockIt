@@ -547,10 +547,17 @@ through after someone else's edit.)
   buttons beside it, for members and admins.  Each button's form carries the task's version.  A
   click from a page loaded before the task changed does nothing, and the page is shown again as the
   task is now, with a message.
-- Task lists can be filtered by state, owner and priority and sorted by priority or modified time.  This
+- Task lists can be filtered by state, owner and priority and sorted by any column.  This
   is cheap given the in-memory index.  Several states can be chosen at once; a priority shows tasks of
   that priority or higher (1 to n).  A list opened with no query shows every state but Complete and
   Deferred; a submitted form with no state ticked shows every state.
+- A task list is sorted by clicking a column heading, and a second click on the same heading reverses
+  the sort.  A first click sorts by task number, title (ignoring case), owner ID, state then substate
+  (in built-in order, unknown ones last) or priority (Critical first), or by modified time with the
+  most recent first.  Tasks that tie stay in task number order either way round.  Each heading is a
+  plain link carrying the current filter (`?sort=title&reverse=1&state=...`), so no script is needed;
+  the filter form carries the sort in hidden fields.  The REST API still sorts only by `id`,
+  `priority` or `modified`, forwards only.
 - Go `html/template` escapes all plain-text fields automatically.
 - Markdown fields (project and task descriptions, comments) are rendered with a CommonMark renderer, then
   passed through an allow-list HTML sanitizer, with raw HTML disabled in the renderer as well.
