@@ -5,13 +5,14 @@
 </div>
 {{if .Data}}
 <table>
-  <thead><tr><th>ID</th><th>Name</th><th>State</th><th>Modified</th></tr></thead>
+  <thead><tr><th>ID</th><th>Name</th><th>State</th><th class="num">Open tasks</th><th>Modified</th></tr></thead>
   <tbody>
   {{range .Data}}
     <tr>
       <td><a href="/projects/{{.ID}}">{{.ID}}</a></td>
       <td><a href="/projects/{{.ID}}">{{.Name}}</a></td>
       <td>{{projectState .State}}</td>
+      <td class="num">{{.Open}}</td>
       <td>{{time .Modified}}</td>
     </tr>
   {{end}}

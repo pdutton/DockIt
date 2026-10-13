@@ -148,6 +148,18 @@ func (x *Index) PutAuth(a *model.Auth) {
 // TaskCount returns the number of tasks in all projects.
 func (x *Index) TaskCount() int { return len(x.tasks) }
 
+// TaskCounts returns the number of tasks in each project whose state is one
+// of states.  Projects with no such tasks are left out.
+func (x *Index) TaskCounts(states []string) map[string]int {
+	out := make(map[string]int)
+	for _, t := range x.tasks {
+		if pid, _, err := model.ParseTaskID(t.ID); err == nil && slices.Contains(states, t.State) {
+			out[pid]++
+		}
+	}
+	return out
+}
+
 // Links returns every link, in stored order.
 func (x *Index) Links() []model.Link {
 	return slices.Clone(x.links)
