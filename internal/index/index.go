@@ -94,6 +94,17 @@ func (x *Index) Tasks(pid string) []*model.Task {
 	return out
 }
 
+// AllTasks returns the tasks of every project, ordered by project, then by
+// task number.
+func (x *Index) AllTasks() []*model.Task {
+	out := make([]*model.Task, 0, len(x.tasks))
+	for _, t := range x.tasks {
+		out = append(out, t.Clone())
+	}
+	slices.SortFunc(out, func(a, b *model.Task) int { return model.CompareTaskIDs(a.ID, b.ID) })
+	return out
+}
+
 // PutTask adds or replaces a task.  The task's ID must be well-formed.
 func (x *Index) PutTask(t *model.Task) {
 	x.tasks[t.ID] = t.Clone()

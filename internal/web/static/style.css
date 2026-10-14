@@ -7,6 +7,7 @@
   --accent: #1d4ed8;
   --accent-fg: #ffffff;
   --danger: #b91c1c;
+  --high: #c2410c;
   --warn-bg: #fef3c7;
   --note-bg: #e0f2fe;
   /* Task state pills: background, then text. */
@@ -26,6 +27,7 @@
     --accent: #60a5fa;
     --accent-fg: #0c0a09;
     --danger: #f87171;
+    --high: #fb923c;
     --warn-bg: #422006;
     --note-bg: #082f49;
     --pill-bg: #44403c;          --pill-fg: #e7e5e4;
@@ -171,4 +173,32 @@ ul.links form.inline { margin-left: 0.5rem; }
 .pill.state-new { background: var(--pill-new-bg); color: var(--pill-new-fg); }
 .pill.state-in_progress { background: var(--pill-progress-bg); color: var(--pill-progress-fg); }
 .pill.state-complete { background: var(--pill-complete-bg); color: var(--pill-complete-fg); }
+/* A priority is outlined, so it never reads as a state.  Critical and High
+   stand out; the rest are quiet. */
+.pill.priority { background: transparent; border: 1px solid currentColor; color: var(--muted); }
+.pill.priority-1 { color: var(--danger); }
+.pill.priority-2 { color: var(--high); }
+.pill.priority-3 { color: var(--fg); }
+
+/* The board: three lanes of task cards, stacked on a narrow screen. */
+.board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: start; margin-top: 1rem; }
+@media (max-width: 48rem) {
+  .board { grid-template-columns: minmax(0, 1fr); }
+}
+.lane { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; }
+.lane h2 { font-size: 1.05rem; margin: 0; }
+.lane .count { color: var(--muted); font-weight: normal; margin-left: 0.25rem; }
+.lane .hint { margin: 0.1rem 0 0; }
+.cards { list-style: none; margin: 0.75rem 0 0; padding: 0; }
+.cards .card { margin: 0 0 0.5rem; padding: 0.55rem 0.7rem; }
+.card-top { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.85rem; }
+.card-top .area { color: var(--muted); text-align: right; overflow-wrap: anywhere; }
+.card-title {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3;
+  overflow: hidden; margin: 0.15rem 0 0.4rem; color: var(--fg); font-weight: 600; text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.card-title:hover { text-decoration: underline; }
+.card-pills { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+.card-pills .owner { margin-left: auto; color: var(--muted); font-size: 0.85rem; }
 .linkform label { margin: 0; }

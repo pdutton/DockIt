@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pdutton/DockIt/internal/auth"
 	"github.com/pdutton/DockIt/internal/model"
@@ -22,6 +23,7 @@ type fixture struct {
 	t   *testing.T
 	svc *service.Service
 	srv *httptest.Server
+	web *Web
 	pw  map[string]string
 }
 
@@ -61,7 +63,7 @@ func newFixture(t *testing.T) *fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.srv = httptest.NewServer(w)
+	f.web, f.srv = w, httptest.NewServer(w)
 	t.Cleanup(f.srv.Close)
 	return f
 }
@@ -311,7 +313,8 @@ func TestProjects(t *testing.T) {
 	mem := f.login("mem")
 	f.want(mem.get("/projects/new"), 403)
 	f.want(mem.post("/projects", "id", "XYZ", "name", "x", "state", "active"), 403)
-	if strings.Contains(mem.get("/").body, "New project") {
+	f.want(admin.get("/projects"), 200, "New project")
+	if strings.Contains(mem.get("/projects").body, "New project") {
 		t.Error("member sees New project")
 	}
 }
@@ -333,7 +336,7 @@ func TestProjectOpenTaskCounts(t *testing.T) {
 		}
 	}
 
-	p := f.login("view").get("/")
+	p := f.login("view").get("/projects")
 	f.want(p, 200, `<th class="num">Open tasks</th>`)
 	// Each project's count is the first after its link.
 	for pid, want := range map[string]string{"WEB": "3", "API": "0"} {
@@ -561,6 +564,87 @@ func TestTaskAreas(t *testing.T) {
 	if strings.Contains(mem.get("/projects/WEB").body, "No area") {
 		t.Error("No area group shown with no tasks in it")
 	}
+}
+
+func TestBoard(t *testing.T) {
+	f := newFixture(t)
+	if _, err := f.svc.CreateProject("admin", service.NewProject{ID: "API", Name: "API", State: model.ProjectActive}); err != nil {
+		t.Fatal(err)
+	}
+	for _, in := range []struct {
+		pid string
+		t   service.NewTask
+	}{
+		{"WEB", service.NewTask{Title: "Fix the header", Owner: "mem", Priority: 3, Area: "Web UI"}},                           // WEB-1
+		{"WEB", service.NewTask{Title: "Crash", Owner: "mem", Priority: 1, State: model.TaskInProgress}},                       // WEB-2
+		{"WEB", service.NewTask{Title: "Set aside", Owner: "mem", Priority: 1, State: model.TaskPaused}},                       // WEB-3
+		{"WEB", service.NewTask{Title: "Later", Owner: "mem", State: model.TaskDeferred}},                                      // WEB-4
+		{"WEB", service.NewTask{Title: "Shipped", Owner: "mem", State: model.TaskComplete, Substate: model.SubstateDone}},      // WEB-5
+		{"WEB", service.NewTask{Title: "Won't do", Owner: "mem", State: model.TaskComplete, Substate: model.SubstateRejected}}, // WEB-6
+		{"WEB", service.NewTask{Title: "Admin's", Owner: "admin", Priority: 2}},                                                // WEB-7
+		{"API", service.NewTask{Title: "Document the API", Owner: "mem", Priority: 2}},                                         // API-1
+	} {
+		if _, err := f.svc.CreateTask("mem", in.pid, in.t); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// lanes checks which cards each lane holds, in order.
+	lanes := func(p page, todo, doing, done string) {
+		t.Helper()
+		if p.status != 200 {
+			t.Fatalf("status %d:\n%s", p.status, p.body)
+		}
+		parts := strings.Split(p.body, `<section class="lane"`)
+		if len(parts) != 4 {
+			t.Fatalf("%d lanes:\n%s", len(parts)-1, p.body)
+		}
+		cardRe := regexp.MustCompile(`<a class="card-id" href="/tasks/([^"]+)">`)
+		for i, want := range []string{todo, doing, done} {
+			var got []string
+			for _, m := range cardRe.FindAllStringSubmatch(parts[i+1], -1) {
+				got = append(got, m[1])
+			}
+			if g := strings.Join(got, " "); g != want {
+				t.Errorf("lane %d = %q, want %q", i, g, want)
+			}
+		}
+	}
+
+	// A member sees their own tasks in every project, by priority, and only
+	// done tasks among the complete ones.  They cannot ask for everyone's.
+	mem := f.login("mem")
+	p := mem.get("/")
+	lanes(p, "WEB-3 API-1 WEB-1", "WEB-2", "WEB-5")
+	f.want(p, 200, `aria-current="page">Board</a>`, `<option value="">All projects</option>`,
+		`<span class="area">Web UI</span>`, `<a class="card-title" href="/tasks/WEB-1">Fix the header</a>`,
+		`<span class="pill state-paused">Paused</span>`, `<span class="pill priority priority-1">Critical</span>`,
+		`<h2 id="lane-2">Done <span class="count">1</span></h2>`, `<p class="hint">In the last 36 hours</p>`)
+	if strings.Contains(p.body, `name="all"`) || strings.Contains(p.body, `class="owner"`) {
+		t.Error("member offered everyone's tasks, or shown owners")
+	}
+	lanes(mem.get("/?all=1"), "WEB-3 API-1 WEB-1", "WEB-2", "WEB-5")
+
+	// One project.
+	p = mem.get("/?project=API")
+	lanes(p, "API-1", "", "")
+	f.want(p, 200, `<option value="API" selected>API</option>`, `<p class="hint">No tasks.</p>`)
+	f.want(mem.get("/?project=NOPE"), 404)
+
+	// Done tasks drop off 36 hours after they were last changed.
+	f.web.now = func() time.Time { return time.Now().Add(35 * time.Hour) }
+	lanes(mem.get("/"), "WEB-3 API-1 WEB-1", "WEB-2", "WEB-5")
+	f.web.now = func() time.Time { return time.Now().Add(37 * time.Hour) }
+	lanes(mem.get("/"), "WEB-3 API-1 WEB-1", "WEB-2", "")
+	f.web.now = time.Now
+
+	// An admin sees their own tasks, or everyone's with their owners.
+	admin := f.login("admin")
+	p = admin.get("/")
+	lanes(p, "WEB-7", "", "")
+	f.want(p, 200, `<input type="checkbox" name="all" value="1"> Everyone's tasks`)
+	p = admin.get("/?all=1&project=WEB")
+	lanes(p, "WEB-3 WEB-7 WEB-1", "WEB-2", "WEB-5")
+	f.want(p, 200, `name="all" value="1" checked`, `<span class="owner">admin</span>`, `<span class="owner">mem</span>`)
 }
 
 func TestTransitions(t *testing.T) {

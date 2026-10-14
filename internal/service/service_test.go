@@ -823,6 +823,45 @@ func TestCompareStatesUnknown(t *testing.T) {
 	}
 }
 
+func TestAllTasks(t *testing.T) {
+	f := newFixture(t)
+	s := f.s
+	_, err := s.CreateProject("admin", NewProject{ID: "API", Name: "API"})
+	f.ok(err)
+	for _, in := range []struct {
+		pid string
+		t   NewTask
+	}{
+		{"WEB", NewTask{Title: "a"}},
+		{"API", NewTask{Title: "b", Owner: "mem2"}},
+		{"WEB", NewTask{Title: "c", State: model.TaskPaused}},
+		{"API", NewTask{Title: "d"}},
+	} {
+		_, err := s.CreateTask("mem", in.pid, in.t)
+		f.ok(err)
+	}
+	for _, tc := range []struct {
+		f    TaskFilter
+		want string
+	}{
+		{TaskFilter{}, "API-1 API-2 WEB-1 WEB-2"},
+		{TaskFilter{Owner: "mem"}, "API-2 WEB-1 WEB-2"},
+		{TaskFilter{States: []string{model.TaskPaused}}, "WEB-2"},
+	} {
+		tasks, err := s.AllTasks("view", tc.f)
+		f.ok(err)
+		var got []string
+		for _, t := range tasks {
+			got = append(got, t.ID)
+		}
+		if g := strings.Join(got, " "); g != tc.want {
+			t.Errorf("%+v: got %s, want %s", tc.f, g, tc.want)
+		}
+	}
+	_, err = s.AllTasks("nobody", TaskFilter{})
+	wantErr(t, err, ErrForbidden)
+}
+
 func TestTaskCounts(t *testing.T) {
 	f := newFixture(t)
 	s := f.s

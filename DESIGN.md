@@ -536,9 +536,18 @@ through after someone else's edit.)
 
 ## Web UI
 
-- Server-rendered pages: project list, project detail with its task
-  list, task detail with links, comments and edit form, user admin, and "my account" for password and
-  tokens.
+- Server-rendered pages: the board (the home page, `/`), project list (`/projects`), project detail
+  with its task list, task detail with links, comments and edit form, user admin, and "my account" for
+  password and tokens.
+- The board shows a user's current tasks at a glance, as cards in three lanes: To do (New or Paused),
+  In progress, and Done (Complete with substate Done, modified in the last 36 hours; Rejected and
+  Duplicate tasks are left off).  To do and In progress put the highest priority first, then go by
+  task ID; Done puts the most recently modified first.  It shows the user's own tasks in every project
+  by default.  A project select narrows it to one project, and admins also get an "Everyone's tasks"
+  box, which adds each card's owner; the `all` parameter is ignored for anyone else.  A card shows the
+  task's ID and area, its title clamped to three lines, and its state and priority as pills.
+  Priority pills are outlined, so they never read as states.  The page reads the whole index, as the
+  task lists do.
 - The project list shows each project's number of open tasks: those in any state but Complete and
   Deferred, the ones its task list shows when first opened.  Counting walks the in-memory index once.
 - A task's links are listed one per line, ordered by their wording from that task (Blocks, Blocked by,

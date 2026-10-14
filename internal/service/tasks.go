@@ -50,6 +50,14 @@ type TaskFilter struct {
 	PriorityOrHigher bool
 }
 
+// excludes reports whether t fails to match f.
+func (f TaskFilter) excludes(t *model.Task) bool {
+	return len(f.States) > 0 && !slices.Contains(f.States, t.State) ||
+		f.Owner != "" && t.Owner != f.Owner ||
+		f.Priority != 0 && (f.PriorityOrHigher && t.Priority > f.Priority ||
+			!f.PriorityOrHigher && t.Priority != f.Priority)
+}
+
 // TaskSort orders a task list.  The zero value is by task number.
 type TaskSort struct {
 	By TaskSortKey
@@ -81,12 +89,7 @@ func (s *Service) Tasks(actor, pid string, f TaskFilter, order TaskSort) ([]*mod
 	if s.x.Project(pid) == nil {
 		return nil, ErrNotFound
 	}
-	tasks := slices.DeleteFunc(s.x.Tasks(pid), func(t *model.Task) bool {
-		return len(f.States) > 0 && !slices.Contains(f.States, t.State) ||
-			f.Owner != "" && t.Owner != f.Owner ||
-			f.Priority != 0 && (f.PriorityOrHigher && t.Priority > f.Priority ||
-				!f.PriorityOrHigher && t.Priority != f.Priority)
-	})
+	tasks := slices.DeleteFunc(s.x.Tasks(pid), f.excludes)
 	var by func(a, b *model.Task) int
 	switch order.By {
 	default: // SortByID: the index's order
@@ -137,6 +140,17 @@ func enumRank(e *model.Enum, id string) int {
 		return i
 	}
 	return math.MaxInt
+}
+
+// AllTasks returns the tasks of every project that match f, ordered by
+// project, then by task number.
+func (s *Service) AllTasks(actor string, f TaskFilter) ([]*model.Task, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if _, err := s.authorize(actor, anyone); err != nil {
+		return nil, err
+	}
+	return slices.DeleteFunc(s.x.AllTasks(), f.excludes), nil
 }
 
 // TaskCounts returns the number of tasks in each project whose state is one
