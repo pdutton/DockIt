@@ -82,6 +82,12 @@
   </label>
 </div>
 <div class="row">
+  {{/* Any text will do; the areas already in use are suggested, so tasks group together. */}}
+  <label>Area <span class="hint">optional</span>
+    <input name="area" value="{{.Form.Area}}" maxlength="50" list="areas" autocomplete="off">
+    <datalist id="areas">{{range .Areas}}<option value="{{.}}">{{end}}</datalist>
+    {{with .Errors.area}}<span class="error">{{.}}</span>{{end}}
+  </label>
   <label>Found in <span class="hint">version, optional</span>
     <input name="found_in" value="{{.Form.FoundIn}}" maxlength="50">
     {{with .Errors.found_in}}<span class="error">{{.}}</span>{{end}}

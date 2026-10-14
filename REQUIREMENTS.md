@@ -233,6 +233,12 @@ Existing tasks, from before types were added, become Task when the dataset is up
 Two optional versions: the version in which the issue was found or introduced, and the version
 in which it was resolved.  These are free-form text, such as `1.0.5`, so any versioning scheme works.
 
+#### Area
+
+An optional area: the part of the project the task belongs to, such as `Packaging` or `Web UI`.  It is
+free-form text.  Existing tasks, from before areas were added, have no area.  A project's task list is
+grouped by area.
+
 #### URLs
 
 This property is optional: zero or more URLs, like a project's.  Each URL has a type, chosen from a

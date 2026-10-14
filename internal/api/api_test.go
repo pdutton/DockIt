@@ -333,6 +333,28 @@ func TestTasks(t *testing.T) {
 	if r.header.Get("ETag") != `"3"` || r.obj()["title"] != "First" {
 		t.Errorf("task %s ETag %s", r.body, r.header.Get("ETag"))
 	}
+
+	// An area is set on create and patch, and null clears it.
+	r = f.do("POST", "/projects/WEB/tasks", "mem", `{"title":"Third","area":"Web UI"}`)
+	f.want(r, 201, "")
+	if r.obj()["area"] != "Web UI" {
+		t.Errorf("created %s", r.body)
+	}
+	r = f.do("PATCH", "/tasks/WEB-3", "mem", `{"area":" Web UI"}`, "If-Match", `"1"`)
+	f.want(r, 422, "invalid")
+	if r.errField() != "area" {
+		t.Errorf("field = %q", r.errField())
+	}
+	r = f.do("PATCH", "/tasks/WEB-3", "mem", `{"area":"Packaging"}`, "If-Match", `"1"`)
+	f.want(r, 200, "")
+	if r.obj()["area"] != "Packaging" {
+		t.Errorf("patched %s", r.body)
+	}
+	r = f.do("PATCH", "/tasks/WEB-3", "mem", `{"area":null}`, "If-Match", `"2"`)
+	f.want(r, 200, "")
+	if _, ok := r.obj()["area"]; ok {
+		t.Errorf("area not cleared: %s", r.body)
+	}
 }
 
 func TestTransitions(t *testing.T) {

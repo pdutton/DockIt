@@ -22,7 +22,7 @@ type Format struct {
 // earlier minor of the same major, updating the dataset's format to this one
 // when it opens it for writing, and upgrades any earlier major from
 // FormatMin.
-var FormatCurrent = Format{Major: 2, Minor: 2}
+var FormatCurrent = Format{Major: 2, Minor: 3}
 
 // FormatMin is the oldest major format this build can upgrade.
 const FormatMin = 1
@@ -156,6 +156,7 @@ type Task struct {
 	State         string    `yaml:"state" json:"state"`
 	Substate      string    `yaml:"substate,omitempty" json:"substate,omitempty"`
 	Priority      int       `yaml:"priority" json:"priority"`
+	Area          string    `yaml:"area,omitempty" json:"area,omitempty"`               // the part of the project the task belongs to
 	FoundIn       string    `yaml:"found_in,omitempty" json:"found_in,omitempty"`       // version the issue was found or introduced in
 	ResolvedIn    string    `yaml:"resolved_in,omitempty" json:"resolved_in,omitempty"` // version it was resolved in
 	URLs          URLs      `yaml:"urls,omitempty" json:"urls,omitempty"`

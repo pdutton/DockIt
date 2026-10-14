@@ -5,6 +5,7 @@ import (
 	"net/mail"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -17,6 +18,7 @@ const (
 	MaxMarkdownLen = 64 << 10 // markdown fields (bytes)
 	MaxURLLen      = 2 << 10  // each URL (bytes)
 	MaxVersionLen  = 50       // task found_in and resolved_in (characters)
+	MaxAreaLen     = 50       // task area (characters)
 	MinPriority    = 1
 	MaxPriority    = 5
 )
@@ -285,9 +287,15 @@ func (t *Task) Validate() []*FieldError {
 		p.add(fieldErr("priority", "must be %d to %d", MinPriority, MaxPriority))
 	}
 	p.add(
+		checkOptionalText("area", t.Area, MaxAreaLen),
 		checkOptionalText("found_in", t.FoundIn, MaxVersionLen),
 		checkOptionalText("resolved_in", t.ResolvedIn, MaxVersionLen),
 	)
+	// Tasks are grouped by exact area, so " Web" would make a group of its
+	// own beside "Web".
+	if t.Area != strings.TrimSpace(t.Area) {
+		p.add(fieldErr("area", "starts or ends with a space"))
+	}
 	p.checkURLs(t.URLs, TaskURLTypes)
 
 	seen := make(map[int]bool, len(t.Comments))

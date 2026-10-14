@@ -60,6 +60,7 @@ added `links` list. Read a task before you change it.
 | `owner` | An active user's ID; defaults to the creator |
 | `state`, `substate` | See [States](#states) |
 | `priority` | 1 (highest) to 5; the default is 3 |
+| `area` | Optional free-form text, up to 50 characters: the part of the project the task belongs to. The web UI groups task lists by it |
 | `found_in`, `resolved_in` | Optional free-form versions: where a problem appeared, and the release that resolved it |
 | `urls` | URLs by type, each a list whose first entry is the primary. Tasks have one type, `pr` (pull requests) |
 | `created`, `modified` | RFC 3339 times in UTC |
