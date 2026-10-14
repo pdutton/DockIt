@@ -62,6 +62,7 @@ type Web struct {
 	userFails   *ratelimit.Limiter
 	addrFails   *ratelimit.Limiter
 	pages       map[string]*template.Template
+	now         func() time.Time // the board's clock
 	mux         *http.ServeMux
 }
 
@@ -76,6 +77,7 @@ func New(svc *service.Service, opts Options) (*Web, error) {
 		userFails:   ratelimit.New(loginFailsPerUser, loginFailWindow),
 		addrFails:   ratelimit.New(loginFailsPerAddr, loginFailWindow),
 		mux:         http.NewServeMux(),
+		now:         time.Now,
 	}
 	if w.log == nil {
 		w.log = slog.New(slog.DiscardHandler)
@@ -116,7 +118,8 @@ func (w *Web) routes() {
 	w.mux.HandleFunc("POST /logout", w.logout)
 
 	h := func(pattern string, f pageFunc) { w.mux.Handle(pattern, w.authenticated(f)) }
-	h("GET /{$}", w.projectList)
+	h("GET /{$}", w.board)
+	h("GET /projects", w.projectList)
 	h("GET /projects/new", w.projectNew)
 	h("POST /projects", w.projectCreate)
 	h("GET /projects/{pid}", w.projectView)

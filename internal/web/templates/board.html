@@ -1,0 +1,49 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="heading">
+  <h1>Board</h1>
+</div>
+
+<form method="get" class="filters">
+  <div class="controls">
+    <label>Project
+      <select name="project">
+        <option value="">All projects</option>
+        {{range $d.Projects}}<option value="{{.ID}}"{{if eq .ID $d.Project}} selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    {{if isAdmin .Me}}<label class="check"><input type="checkbox" name="all" value="1"{{if $d.All}} checked{{end}}> Everyone's tasks</label>{{end}}
+    <button type="submit" class="secondary">Show</button>
+  </div>
+</form>
+
+{{/* Three lanes side by side, stacked on a narrow screen.  Each task is a
+     card: its type and ID (as "ENH: WEB-1") and area, its title (clamped to
+     a few lines), then its state and priority, and its owner when everyone's
+     tasks are shown. */}}
+<div class="board">
+  {{range $i, $lane := $d.Lanes}}
+  <section class="lane" aria-labelledby="lane-{{$i}}">
+    <h2 id="lane-{{$i}}">{{$lane.Title}} <span class="count">{{len $lane.Tasks}}</span></h2>
+    {{with $lane.Hint}}<p class="hint">{{.}}</p>{{end}}
+    {{if $lane.Tasks}}
+    <ol class="cards">
+      {{range $lane.Tasks}}
+      <li class="card">
+        <div class="card-top"><span>{{with .Type}}<span class="type">{{taskTypeShort .}}:</span> {{end}}<a class="card-id" href="/tasks/{{.ID}}">{{.ID}}</a></span>{{with .Area}}<span class="area">{{.}}</span>{{end}}</div>
+        <a class="card-title" href="/tasks/{{.ID}}">{{.Title}}</a>
+        <div class="card-pills">
+          <span class="pill state-{{.State}}">{{taskState .State}}</span>
+          <span class="pill priority priority-{{.Priority}}">{{priority .Priority}}</span>
+          {{if $d.All}}<span class="owner">{{.Owner}}</span>{{end}}
+        </div>
+      </li>
+      {{end}}
+    </ol>
+    {{else}}
+    <p class="hint">No tasks.</p>
+    {{end}}
+  </section>
+  {{end}}
+</div>
+{{end}}

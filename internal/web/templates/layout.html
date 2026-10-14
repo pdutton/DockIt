@@ -17,7 +17,8 @@
   </div>
   {{if .Me}}
   <nav>
-    <a href="/"{{if eq .Path "/"}} aria-current="page"{{end}}>Projects</a>
+    <a href="/"{{if eq .Path "/"}} aria-current="page"{{end}}>Board</a>
+    <a href="/projects"{{if eq .Path "/projects"}} aria-current="page"{{end}}>Projects</a>
     <a href="/users"{{if eq .Path "/users"}} aria-current="page"{{end}}>Users</a>
     <a href="/account"{{if eq .Path "/account"}} aria-current="page"{{end}}>{{.Me.Name}}</a>
     <form method="post" action="/logout" class="inline">
