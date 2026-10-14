@@ -107,13 +107,13 @@ func (a *API) listTasks(w http.ResponseWriter, r *http.Request, actor string) er
 		}
 		f.Priority = n
 	}
-	order := service.SortByID
+	var order service.TaskSort
 	switch q.Get("sort") {
 	case "", "id":
 	case "priority":
-		order = service.SortByPriority
+		order.By = service.SortByPriority
 	case "modified":
-		order = service.SortByModified
+		order.By = service.SortByModified
 	default:
 		return badRequest("sort", "sort must be id, priority or modified")
 	}

@@ -39,21 +39,18 @@
         {{range priorities}}<option value="{{.}}"{{if eq . $.Data.Filter.Priority}} selected{{end}}>{{priority .}}</option>{{end}}
       </select>
     </label>
-    <label>Sort by
-      <select name="sort">
-        <option value="">Number</option>
-        <option value="priority"{{if eq .Data.Sort "priority"}} selected{{end}}>Priority</option>
-        <option value="modified"{{if eq .Data.Sort "modified"}} selected{{end}}>Recently modified</option>
-      </select>
-    </label>
+    {{/* The column headings sort the list; Show keeps their sort. */}}
+    <input type="hidden" name="sort" value="{{.Data.Sort}}">
+    {{if .Data.Reverse}}<input type="hidden" name="reverse" value="1">{{end}}
     <button type="submit" class="secondary">Show</button>
   </div>
 </form>
 
 {{if .Data.Tasks}}
-{{/* Only the title wraps; the other columns keep their natural width. */}}
+{{/* Only the title wraps; the other columns keep their natural width.
+     Each heading sorts by its column, and the current one reverses it. */}}
 <table class="tasks">
-  <thead><tr><th>ID</th><th class="title">Title</th><th>Owner</th><th>State</th><th>Priority</th><th>Modified</th></tr></thead>
+  <thead><tr>{{range .Data.Headings}}<th{{with .Class}} class="{{.}}"{{end}}{{with .Order}} aria-sort="{{.}}"{{end}}><a href="{{.Link}}">{{.Label}}</a></th>{{end}}</tr></thead>
   <tbody>
   {{range .Data.Tasks}}
     <tr>

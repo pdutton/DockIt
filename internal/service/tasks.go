@@ -3,7 +3,9 @@ package service
 import (
 	"cmp"
 	"maps"
+	"math"
 	"slices"
+	"strings"
 
 	"github.com/pdutton/DockIt/internal/model"
 )
@@ -46,13 +48,25 @@ type TaskFilter struct {
 	PriorityOrHigher bool
 }
 
-// TaskSort orders a task list.
-type TaskSort int
+// TaskSort orders a task list.  The zero value is by task number.
+type TaskSort struct {
+	By TaskSortKey
+	// Reverse turns the order round.  Tasks that tie still come in task
+	// number order.
+	Reverse bool
+}
+
+// TaskSortKey is what a task list is ordered by.  Ties are broken by task
+// number.
+type TaskSortKey int
 
 const (
-	SortByID       TaskSort = iota // task number, ascending
-	SortByPriority                 // highest priority (1) first, then by number
-	SortByModified                 // most recently modified first, then by number
+	SortByID       TaskSortKey = iota // task number, ascending
+	SortByPriority                    // highest priority (1) first
+	SortByModified                    // most recently modified first
+	SortByTitle                       // title, A to Z, ignoring case
+	SortByOwner                       // owner's user ID, A to Z
+	SortByState                       // state, then substate, in built-in order; unknown ones last
 )
 
 // Tasks returns the tasks of project pid that match f, in order.
@@ -71,15 +85,56 @@ func (s *Service) Tasks(actor, pid string, f TaskFilter, order TaskSort) ([]*mod
 			f.Priority != 0 && (f.PriorityOrHigher && t.Priority > f.Priority ||
 				!f.PriorityOrHigher && t.Priority != f.Priority)
 	})
-	// Tasks come from the index in number order, so a stable sort keeps
-	// that as the tie-breaker.
-	switch order {
+	var by func(a, b *model.Task) int
+	switch order.By {
+	default: // SortByID: the index's order
+		if order.Reverse {
+			slices.Reverse(tasks)
+		}
+		return tasks, nil
 	case SortByPriority:
-		slices.SortStableFunc(tasks, func(a, b *model.Task) int { return cmp.Compare(a.Priority, b.Priority) })
+		by = func(a, b *model.Task) int { return cmp.Compare(a.Priority, b.Priority) }
 	case SortByModified:
-		slices.SortStableFunc(tasks, func(a, b *model.Task) int { return b.Modified.Compare(a.Modified) })
+		by = func(a, b *model.Task) int { return b.Modified.Compare(a.Modified) }
+	case SortByTitle:
+		by = func(a, b *model.Task) int { return cmp.Compare(strings.ToLower(a.Title), strings.ToLower(b.Title)) }
+	case SortByOwner:
+		by = func(a, b *model.Task) int { return cmp.Compare(a.Owner, b.Owner) }
+	case SortByState:
+		by = compareStates
 	}
+	if order.Reverse {
+		forward := by
+		by = func(a, b *model.Task) int { return forward(b, a) }
+	}
+	// Tasks come from the index in number order, so a stable sort keeps
+	// that as the tie-breaker, whichever way round the list is.
+	slices.SortStableFunc(tasks, by)
 	return tasks, nil
+}
+
+// compareStates orders tasks by state, then by substate, each in built-in
+// order.  Unknown ones, which only old data can hold, come after the known
+// ones, in the order of their raw values.
+func compareStates(a, b *model.Task) int {
+	return cmp.Or(
+		cmp.Compare(enumRank(model.TaskStates, a.State), enumRank(model.TaskStates, b.State)),
+		cmp.Compare(a.State, b.State),
+		cmp.Compare(enumRank(model.Substates[a.State], a.Substate), enumRank(model.Substates[b.State], b.Substate)),
+		cmp.Compare(a.Substate, b.Substate),
+	)
+}
+
+// enumRank returns the position of id in e, with unknown ids after every
+// known one.  A nil e has no values, so every id ranks the same.
+func enumRank(e *model.Enum, id string) int {
+	if e == nil {
+		return 0
+	}
+	if i := e.Index(id); i >= 0 {
+		return i
+	}
+	return math.MaxInt
 }
 
 // TaskCounts returns the number of tasks in each project whose state is one
