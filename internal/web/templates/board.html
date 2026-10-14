@@ -18,8 +18,9 @@
 </form>
 
 {{/* Three lanes side by side, stacked on a narrow screen.  Each task is a
-     card: its ID and area, its title (clamped to a few lines), then its
-     state and priority, and its owner when everyone's tasks are shown. */}}
+     card: its type and ID (as "ENH: WEB-1") and area, its title (clamped to
+     a few lines), then its state and priority, and its owner when everyone's
+     tasks are shown. */}}
 <div class="board">
   {{range $i, $lane := $d.Lanes}}
   <section class="lane" aria-labelledby="lane-{{$i}}">
@@ -29,7 +30,7 @@
     <ol class="cards">
       {{range $lane.Tasks}}
       <li class="card">
-        <div class="card-top"><a class="card-id" href="/tasks/{{.ID}}">{{.ID}}</a>{{with .Area}}<span class="area">{{.}}</span>{{end}}</div>
+        <div class="card-top"><span>{{with .Type}}<span class="type">{{taskTypeShort .}}:</span> {{end}}<a class="card-id" href="/tasks/{{.ID}}">{{.ID}}</a></span>{{with .Area}}<span class="area">{{.}}</span>{{end}}</div>
         <a class="card-title" href="/tasks/{{.ID}}">{{.Title}}</a>
         <div class="card-pills">
           <span class="pill state-{{.State}}">{{taskState .State}}</span>

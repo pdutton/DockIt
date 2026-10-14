@@ -545,9 +545,9 @@ through after someone else's edit.)
   task ID; Done puts the most recently modified first.  It shows the user's own tasks in every project
   by default.  A project select narrows it to one project, and admins also get an "Everyone's tasks"
   box, which adds each card's owner; the `all` parameter is ignored for anyone else.  A card shows the
-  task's ID and area, its title clamped to three lines, and its state and priority as pills.
-  Priority pills are outlined, so they never read as states.  The page reads the whole index, as the
-  task lists do.
+  task's abbreviated type and ID, as `ENH: WEB-1`, and its area, its title clamped to three lines,
+  and its state and priority as pills.  Priority pills are outlined, so they never read as states.
+  The page reads the whole index, as the task lists do.
 - The project list shows each project's number of open tasks: those in any state but Complete and
   Deferred, the ones its task list shows when first opened.  Counting walks the in-memory index once.
 - A task's links are listed one per line, ordered by their wording from that task (Blocks, Blocked by,
