@@ -636,9 +636,13 @@ func TestBoard(t *testing.T) {
 		`<div class="card-top tint-gray"><span><span class="type"><abbr title="Task">TASK</abbr>:</span> <a class="card-id" href="/tasks/WEB-1">WEB-1</a></span>`,
 		`<div class="card-top tint-cyan"><span><span class="type"><abbr title="Enhancement">ENH</abbr>:</span> <a class="card-id" href="/tasks/API-1">API-1</a></span>`,
 		`<span class="pill state-paused">Paused</span>`, `<span class="pill priority priority-1">Critical</span>`,
-		`<h2 id="lane-2">Done <span class="count">1</span></h2>`, `<p class="hint">In the last 36 hours</p>`)
+		`<h2 id="lane-2">Done <span class="count">1</span></h2>`)
 	if strings.Contains(p.body, `name="all"`) || strings.Contains(p.body, `class="owner"`) {
 		t.Error("member offered everyone's tasks, or shown owners")
+	}
+	// No lane is empty, so there is no hint: the lanes have no subtitles.
+	if strings.Contains(p.body, `class="hint"`) {
+		t.Errorf("hint on a board with no empty lane:\n%s", p.body)
 	}
 	lanes(mem.get("/?all=1"), "WEB-3 API-1 WEB-1", "WEB-2", "WEB-5")
 

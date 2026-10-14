@@ -26,7 +26,6 @@
   {{range $i, $lane := $d.Lanes}}
   <section class="lane" aria-labelledby="lane-{{$i}}">
     <h2 id="lane-{{$i}}">{{$lane.Title}} <span class="count">{{len $lane.Tasks}}</span></h2>
-    {{with $lane.Hint}}<p class="hint">{{.}}</p>{{end}}
     {{if $lane.Tasks}}
     <ol class="cards">
       {{range $lane.Tasks}}

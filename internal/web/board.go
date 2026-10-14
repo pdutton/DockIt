@@ -2,7 +2,6 @@ package web
 
 import (
 	"cmp"
-	"fmt"
 	"net/http"
 	"slices"
 	"time"
@@ -21,7 +20,6 @@ const boardDoneFor = 36 * time.Hour
 // boardLane is a column of the board.
 type boardLane struct {
 	Title string
-	Hint  string // which tasks it holds, when the title does not say
 	Tasks []*model.Task
 }
 
@@ -64,9 +62,9 @@ func (w *Web) board(rw http.ResponseWriter, r *http.Request, c *ctx) error {
 		return err
 	}
 
-	todo := boardLane{Title: "To do", Hint: "New or paused"}
+	todo := boardLane{Title: "To do"}
 	doing := boardLane{Title: "In progress"}
-	done := boardLane{Title: "Done", Hint: fmt.Sprintf("In the last %d hours", int(boardDoneFor.Hours()))}
+	done := boardLane{Title: "Done"}
 	since := w.now().Add(-boardDoneFor)
 	for _, t := range tasks {
 		switch {
