@@ -548,6 +548,11 @@ through after someone else's edit.)
   task's abbreviated type and ID, as `ENH: WEB-1`, and its area, its title clamped to three lines,
   and its state and priority as pills.  Priority pills are outlined, so they never read as states.
   The page reads the whole index, as the task lists do.
+- A card's top line, with the type, ID and area, is tinted by the task's type: Bug Fix red,
+  Enhancement violet, Feature teal, Documentation sky blue, Research orange, and Task, the default,
+  neutral grey, as is any unknown type.  Each tint has its own text colour, in light and dark themes,
+  so the line stays readable; the type's short name is always there too, so colour is never the only
+  cue.
 - The project list shows each project's number of open tasks: those in any state but Complete and
   Deferred, the ones its task list shows when first opened.  Counting walks the in-memory index once.
 - A task's links are listed one per line, ordered by their wording from that task (Blocks, Blocked by,
