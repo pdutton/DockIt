@@ -617,9 +617,10 @@ func TestBoard(t *testing.T) {
 	lanes(p, "WEB-3 API-1 WEB-1", "WEB-2", "WEB-5")
 	f.want(p, 200, `aria-current="page">Board</a>`, `<option value="">All projects</option>`,
 		`<span class="area">Web UI</span>`, `<a class="card-title" href="/tasks/WEB-1">Fix the header</a>`,
-		// The ID has the type's short name in front, as in the task list.
-		`<span><span class="type"><abbr title="Task">TASK</abbr>:</span> <a class="card-id" href="/tasks/WEB-1">WEB-1</a></span>`,
-		`<span><span class="type"><abbr title="Enhancement">ENH</abbr>:</span> <a class="card-id" href="/tasks/API-1">API-1</a></span>`,
+		// The top line is tinted by type, and the ID has the type's short
+		// name in front, as in the task list.
+		`<div class="card-top type-task"><span><span class="type"><abbr title="Task">TASK</abbr>:</span> <a class="card-id" href="/tasks/WEB-1">WEB-1</a></span>`,
+		`<div class="card-top type-enhancement"><span><span class="type"><abbr title="Enhancement">ENH</abbr>:</span> <a class="card-id" href="/tasks/API-1">API-1</a></span>`,
 		`<span class="pill state-paused">Paused</span>`, `<span class="pill priority priority-1">Critical</span>`,
 		`<h2 id="lane-2">Done <span class="count">1</span></h2>`, `<p class="hint">In the last 36 hours</p>`)
 	if strings.Contains(p.body, `name="all"`) || strings.Contains(p.body, `class="owner"`) {

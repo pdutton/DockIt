@@ -15,6 +15,13 @@
   --pill-new-bg: #dbeafe;      --pill-new-fg: #1e40af;
   --pill-progress-bg: #fef3c7; --pill-progress-fg: #92400e;
   --pill-complete-bg: #dcfce7; --pill-complete-fg: #166534;
+  /* Board card top lines, by task type: background, then text. */
+  --type-bg: #e7e5e4;               --type-fg: #44403c;
+  --type-bugfix-bg: #fee2e2;        --type-bugfix-fg: #991b1b;
+  --type-enhancement-bg: #ede9fe;   --type-enhancement-fg: #5b21b6;
+  --type-feature-bg: #ccfbf1;       --type-feature-fg: #115e59;
+  --type-documentation-bg: #e0f2fe; --type-documentation-fg: #075985;
+  --type-research-bg: #ffedd5;      --type-research-fg: #9a3412;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -34,6 +41,12 @@
     --pill-new-bg: #1e3a8a;      --pill-new-fg: #dbeafe;
     --pill-progress-bg: #78350f; --pill-progress-fg: #fef3c7;
     --pill-complete-bg: #14532d; --pill-complete-fg: #dcfce7;
+    --type-bg: #44403c;               --type-fg: #e7e5e4;
+    --type-bugfix-bg: #7f1d1d;        --type-bugfix-fg: #fee2e2;
+    --type-enhancement-bg: #4c1d95;   --type-enhancement-fg: #ede9fe;
+    --type-feature-bg: #134e4a;       --type-feature-fg: #ccfbf1;
+    --type-documentation-bg: #0c4a6e; --type-documentation-fg: #e0f2fe;
+    --type-research-bg: #7c2d12;      --type-research-fg: #ffedd5;
   }
 }
 
@@ -191,8 +204,21 @@ ul.links form.inline { margin-left: 0.5rem; }
 .lane .hint { margin: 0.1rem 0 0; }
 .cards { list-style: none; margin: 0.75rem 0 0; padding: 0; }
 .cards .card { margin: 0 0 0.5rem; padding: 0.55rem 0.7rem; }
-.card-top { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.85rem; }
-.card-top .area { color: var(--muted); text-align: right; overflow-wrap: anywhere; }
+/* A card's top line runs edge to edge, tinted by the task's type.  Task and
+   any unknown type keep the neutral tint.  Its text takes the tint's own
+   colour, which keeps it readable. */
+.card-top {
+  display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.85rem;
+  margin: -0.55rem -0.7rem 0.4rem; padding: 0.25rem 0.7rem; border-radius: 7px 7px 0 0;
+  background: var(--type-bg); color: var(--type-fg);
+}
+.card-top .type, .card-top .card-id { color: inherit; }
+.card-top .area { text-align: right; overflow-wrap: anywhere; }
+.card-top.type-bugfix { background: var(--type-bugfix-bg); color: var(--type-bugfix-fg); }
+.card-top.type-enhancement { background: var(--type-enhancement-bg); color: var(--type-enhancement-fg); }
+.card-top.type-feature { background: var(--type-feature-bg); color: var(--type-feature-fg); }
+.card-top.type-documentation { background: var(--type-documentation-bg); color: var(--type-documentation-fg); }
+.card-top.type-research { background: var(--type-research-bg); color: var(--type-research-fg); }
 .card-title {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3;
   overflow: hidden; margin: 0.15rem 0 0.4rem; color: var(--fg); font-weight: 600; text-decoration: none;
