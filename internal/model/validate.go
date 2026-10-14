@@ -227,6 +227,7 @@ func (pr *Project) Validate() []*FieldError {
 		checkVersion("version", pr.Version),
 		checkText("name", pr.Name, MaxTitleLen),
 		checkEnum("state", ProjectStates, pr.State),
+		checkEnum("color", ProjectColors, pr.Color),
 		checkMarkdown("description", pr.Description),
 		checkTime("created", pr.Created),
 		checkTime("modified", pr.Modified),

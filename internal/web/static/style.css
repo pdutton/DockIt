@@ -15,13 +15,19 @@
   --pill-new-bg: #dbeafe;      --pill-new-fg: #1e40af;
   --pill-progress-bg: #fef3c7; --pill-progress-fg: #92400e;
   --pill-complete-bg: #dcfce7; --pill-complete-fg: #166534;
-  /* Board card top lines, by task type: background, then text. */
-  --type-bg: #e7e5e4;               --type-fg: #44403c;
-  --type-bugfix-bg: #fee2e2;        --type-bugfix-fg: #991b1b;
-  --type-enhancement-bg: #ede9fe;   --type-enhancement-fg: #5b21b6;
-  --type-feature-bg: #ccfbf1;       --type-feature-fg: #115e59;
-  --type-documentation-bg: #e0f2fe; --type-documentation-fg: #075985;
-  --type-research-bg: #ffedd5;      --type-research-fg: #9a3412;
+  /* Project colors, as tints for board card top lines and swatches:
+     background, then text. */
+  --tint-red-bg: #ffbebb;        --tint-red-fg: #6f181e;
+  --tint-orange-bg: #ffc299;     --tint-orange-fg: #5f2e00;
+  --tint-ochre-bg: #ecce83;      --tint-ochre-fg: #4d3a00;
+  --tint-chartreuse-bg: #c3dd93; --tint-chartreuse-fg: #334400;
+  --tint-green-bg: #a7e2b6;      --tint-green-fg: #004b22;
+  --tint-cyan-bg: #95e0e4;       --tint-cyan-fg: #00474a;
+  --tint-blue-bg: #acd6ff;       --tint-blue-fg: #003f6d;
+  --tint-indigo-bg: #c9ccff;     --tint-indigo-fg: #363079;
+  --tint-purple-bg: #ecbff3;     --tint-purple-fg: #592161;
+  --tint-gray-bg: #d3d0ce;       --tint-gray-fg: #403c3a;
+  --tint-brown-bg: #d3af9b;      --tint-brown-fg: #502100;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -41,12 +47,17 @@
     --pill-new-bg: #1e3a8a;      --pill-new-fg: #dbeafe;
     --pill-progress-bg: #78350f; --pill-progress-fg: #fef3c7;
     --pill-complete-bg: #14532d; --pill-complete-fg: #dcfce7;
-    --type-bg: #44403c;               --type-fg: #e7e5e4;
-    --type-bugfix-bg: #7f1d1d;        --type-bugfix-fg: #fee2e2;
-    --type-enhancement-bg: #4c1d95;   --type-enhancement-fg: #ede9fe;
-    --type-feature-bg: #134e4a;       --type-feature-fg: #ccfbf1;
-    --type-documentation-bg: #0c4a6e; --type-documentation-fg: #e0f2fe;
-    --type-research-bg: #7c2d12;      --type-research-fg: #ffedd5;
+    --tint-red-bg: #822b2e;        --tint-red-fg: #ffe8e7;
+    --tint-orange-bg: #7f3f00;     --tint-orange-fg: #ffeadc;
+    --tint-ochre-bg: #674f00;      --tint-ochre-fg: #fdedc9;
+    --tint-chartreuse-bg: #425607; --tint-chartreuse-fg: #e7f5d0;
+    --tint-green-bg: #1e5b34;      --tint-green-fg: #d7f9de;
+    --tint-cyan-bg: #00585c;       --tint-cyan-fg: #c8f9fc;
+    --tint-blue-bg: #1e507b;       --tint-blue-fg: #e2f0ff;
+    --tint-indigo-bg: #454482;     --tint-indigo-fg: #ebedff;
+    --tint-purple-bg: #66386d;     --tint-purple-fg: #fce6ff;
+    --tint-gray-bg: #4f4c4a;       --tint-gray-fg: #f2eeea;
+    --tint-brown-bg: #4c382d;      --tint-brown-fg: #ffeade;
   }
 }
 
@@ -193,6 +204,25 @@ ul.links form.inline { margin-left: 0.5rem; }
 .pill.priority-2 { color: var(--high); }
 .pill.priority-3 { color: var(--fg); }
 
+/* A project's color.  A tint-<color> class picks the tint that a card's
+   top line or a swatch is drawn in.  Gray, the default, needs no class, and
+   any unknown color is gray too. */
+.tint-red { --tint-bg: var(--tint-red-bg); --tint-fg: var(--tint-red-fg); }
+.tint-orange { --tint-bg: var(--tint-orange-bg); --tint-fg: var(--tint-orange-fg); }
+.tint-ochre { --tint-bg: var(--tint-ochre-bg); --tint-fg: var(--tint-ochre-fg); }
+.tint-chartreuse { --tint-bg: var(--tint-chartreuse-bg); --tint-fg: var(--tint-chartreuse-fg); }
+.tint-green { --tint-bg: var(--tint-green-bg); --tint-fg: var(--tint-green-fg); }
+.tint-cyan { --tint-bg: var(--tint-cyan-bg); --tint-fg: var(--tint-cyan-fg); }
+.tint-blue { --tint-bg: var(--tint-blue-bg); --tint-fg: var(--tint-blue-fg); }
+.tint-indigo { --tint-bg: var(--tint-indigo-bg); --tint-fg: var(--tint-indigo-fg); }
+.tint-purple { --tint-bg: var(--tint-purple-bg); --tint-fg: var(--tint-purple-fg); }
+.tint-brown { --tint-bg: var(--tint-brown-bg); --tint-fg: var(--tint-brown-fg); }
+.swatch {
+  display: inline-block; width: 0.8em; height: 0.8em; border-radius: 3px; vertical-align: -0.05em;
+  margin-right: 0.35em; background: var(--tint-bg, var(--tint-gray-bg)); border: 1px solid var(--tint-fg, var(--tint-gray-fg));
+}
+td.project-id { white-space: nowrap; }
+
 /* The board: three lanes of task cards, stacked on a narrow screen. */
 .board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: start; margin-top: 1rem; }
 @media (max-width: 48rem) {
@@ -204,21 +234,15 @@ ul.links form.inline { margin-left: 0.5rem; }
 .lane .hint { margin: 0.1rem 0 0; }
 .cards { list-style: none; margin: 0.75rem 0 0; padding: 0; }
 .cards .card { margin: 0 0 0.5rem; padding: 0.55rem 0.7rem; }
-/* A card's top line runs edge to edge, tinted by the task's type.  Task and
-   any unknown type keep the neutral tint.  Its text takes the tint's own
-   colour, which keeps it readable. */
+/* A card's top line runs edge to edge, tinted by the task's project's
+   color.  Its text takes the tint's own color, which keeps it readable. */
 .card-top {
   display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.85rem;
   margin: -0.55rem -0.7rem 0.4rem; padding: 0.25rem 0.7rem; border-radius: 7px 7px 0 0;
-  background: var(--type-bg); color: var(--type-fg);
+  background: var(--tint-bg, var(--tint-gray-bg)); color: var(--tint-fg, var(--tint-gray-fg));
 }
 .card-top .type, .card-top .card-id { color: inherit; }
 .card-top .area { text-align: right; overflow-wrap: anywhere; }
-.card-top.type-bugfix { background: var(--type-bugfix-bg); color: var(--type-bugfix-fg); }
-.card-top.type-enhancement { background: var(--type-enhancement-bg); color: var(--type-enhancement-fg); }
-.card-top.type-feature { background: var(--type-feature-bg); color: var(--type-feature-fg); }
-.card-top.type-documentation { background: var(--type-documentation-bg); color: var(--type-documentation-fg); }
-.card-top.type-research { background: var(--type-research-bg); color: var(--type-research-fg); }
 .card-title {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3;
   overflow: hidden; margin: 0.15rem 0 0.4rem; color: var(--fg); font-weight: 600; text-decoration: none;

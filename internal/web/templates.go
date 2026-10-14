@@ -44,6 +44,7 @@ var funcs = template.FuncMap{
 	"shortTime": func(t time.Time) template.HTML { return timeTag(t, "short") },
 
 	"projectState":  func(id string) template.HTML { return enumTag(model.ProjectStates, id) },
+	"projectColor":  func(id string) template.HTML { return enumTag(model.ProjectColors, id) },
 	"taskState":     func(id string) template.HTML { return enumTag(model.TaskStates, id) },
 	"taskType":      func(id string) template.HTML { return enumTag(model.TaskTypes, id) },
 	"taskTypeShort": taskTypeShort,
@@ -59,6 +60,7 @@ var funcs = template.FuncMap{
 	},
 
 	"projectStates": model.ProjectStates.Values,
+	"projectColors": model.ProjectColors.Values,
 	"taskStates":    model.TaskStates.Values,
 	"taskTypes":     model.TaskTypes.Values,
 	"urlTypes":      model.URLTypes.Values,

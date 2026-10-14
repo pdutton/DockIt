@@ -185,10 +185,18 @@ func TestProjects(t *testing.T) {
 	if r.header.Get("Location") != Prefix+"/projects/API" || r.header.Get("ETag") != `"1"` {
 		t.Errorf("headers = %v", r.header)
 	}
+	if c := r.obj()["color"]; c != "gray" {
+		t.Errorf("color = %v, want gray by default", c)
+	}
 	f.want(f.do("POST", "/projects", "admin", body), 409, "exists")
 	r = f.do("POST", "/projects", "admin", map[string]any{"id": "NEW", "name": ""})
 	f.want(r, 422, "invalid")
 	if r.errField() != "name" {
+		t.Errorf("field = %q", r.errField())
+	}
+	r = f.do("POST", "/projects", "admin", map[string]any{"id": "NEW", "name": "x", "color": "mauve"})
+	f.want(r, 422, "invalid")
+	if r.errField() != "color" {
 		t.Errorf("field = %q", r.errField())
 	}
 	r = f.do("POST", "/projects/WEB/tasks", "mem", `{"title":"x","type":"chore"}`)
@@ -200,8 +208,14 @@ func TestProjects(t *testing.T) {
 	f.want(f.do("POST", "/projects", "admin", `{"id":"NEW",`), 400, "bad_request")
 	f.want(f.do("POST", "/projects", "admin", `{"id":"NEW","name":"x"} {}`), 400, "bad_request")
 
+	r = f.do("POST", "/projects", "admin", map[string]any{"id": "UI", "name": "UI", "color": "chartreuse"})
+	f.want(r, 201, "")
+	if c := r.obj()["color"]; c != "chartreuse" {
+		t.Errorf("color = %v", c)
+	}
+
 	r = f.do("GET", "/projects", "view", nil)
-	if list, _ := r.json().([]any); len(list) != 2 {
+	if list, _ := r.json().([]any); len(list) != 3 {
 		t.Errorf("projects = %s", r.body)
 	}
 	r = f.do("GET", "/projects/API", "view", nil)
@@ -250,6 +264,17 @@ func TestPatchProject(t *testing.T) {
 		t.Errorf("urls not removed: %s", r.body)
 	}
 	f.want(f.do("PATCH", "/projects/API", "admin", `{"urls":{"web":["javascript:x"]}}`, "If-Match", `"3"`), 422, "invalid")
+	f.want(f.do("PATCH", "/projects/API", "admin", `{"color":null}`, "If-Match", `"3"`), 400, "bad_request")
+	r = f.do("PATCH", "/projects/API", "admin", `{"color":"mauve"}`, "If-Match", `"3"`)
+	f.want(r, 422, "invalid")
+	if r.errField() != "color" {
+		t.Errorf("field = %q", r.errField())
+	}
+	r = f.do("PATCH", "/projects/API", "admin", `{"color":"purple"}`, "If-Match", `"3"`)
+	f.want(r, 200, "")
+	if c := r.obj()["color"]; c != "purple" {
+		t.Errorf("color = %v", c)
+	}
 	f.want(f.do("PATCH", "/projects/API", "mem", `{"name":"x"}`, "If-Match", `"3"`), 403, "forbidden")
 }
 
@@ -578,11 +603,13 @@ func TestEnums(t *testing.T) {
 	states, _ := r.obj()["task_states"].([]any)
 	types, _ := r.obj()["task_types"].([]any)
 	urlTypes, _ := r.obj()["task_url_types"].([]any)
+	colors, _ := r.obj()["project_colors"].([]any)
 	complete, _ := subs["complete"].([]any)
 	if len(complete) != 3 || complete[2].(map[string]any)["display"] != "Duplicate" || len(states) != 5 ||
 		states[1].(map[string]any)["display"] != "In Progress" ||
 		len(types) != 6 || types[0].(map[string]any)["display"] != "Bug Fix" ||
-		len(urlTypes) != 1 || urlTypes[0].(map[string]any)["id"] != "pr" {
+		len(urlTypes) != 1 || urlTypes[0].(map[string]any)["id"] != "pr" ||
+		len(colors) != 11 || colors[2].(map[string]any)["id"] != "ochre" || colors[2].(map[string]any)["display"] != "Ochre" {
 		t.Errorf("enums = %s", r.body)
 	}
 	linkTypes, _ := r.obj()["link_types"].([]any)

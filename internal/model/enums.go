@@ -61,6 +61,21 @@ const (
 	ProjectComplete = "complete"
 )
 
+// Project colors.  The ids are symbolic names; the Web UI chooses the shades.
+const (
+	ColorRed        = "red"
+	ColorOrange     = "orange"
+	ColorOchre      = "ochre" // golden yellow
+	ColorChartreuse = "chartreuse"
+	ColorGreen      = "green"
+	ColorCyan       = "cyan"
+	ColorBlue       = "blue"
+	ColorIndigo     = "indigo" // bluish purple
+	ColorPurple     = "purple" // reddish purple
+	ColorGray       = "gray"
+	ColorBrown      = "brown"
+)
+
 // Task states.
 const (
 	TaskNew        = "new"
@@ -110,6 +125,20 @@ var (
 		EnumValue{ProjectInactive, "Inactive"},
 		EnumValue{ProjectDormant, "Dormant"},
 		EnumValue{ProjectComplete, "Complete"},
+	)
+
+	ProjectColors = newEnum("project color",
+		EnumValue{ColorRed, "Red"},
+		EnumValue{ColorOrange, "Orange"},
+		EnumValue{ColorOchre, "Ochre"},
+		EnumValue{ColorChartreuse, "Chartreuse"},
+		EnumValue{ColorGreen, "Green"},
+		EnumValue{ColorCyan, "Cyan"},
+		EnumValue{ColorBlue, "Blue"},
+		EnumValue{ColorIndigo, "Indigo"},
+		EnumValue{ColorPurple, "Purple"},
+		EnumValue{ColorGray, "Gray"},
+		EnumValue{ColorBrown, "Brown"},
 	)
 
 	TaskStates = newEnum("task state",

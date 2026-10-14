@@ -286,14 +286,15 @@ func TestProjects(t *testing.T) {
 
 	f.want(admin.get("/projects/new"), 200, "New project")
 	f.want(admin.post("/projects", "id", "api", "name", "API", "state", "active"), 422, "not a valid project ID")
-	p := admin.post("/projects", "id", "API", "name", "<script>alert(1)</script>", "state", "active",
+	p := admin.post("/projects", "id", "API", "name", "<script>alert(1)</script>", "state", "active", "color", "ochre",
 		"description", "Hello <script>alert(2)</script> **world**",
 		"urls_code", "https://example.com/a\r\n\r\nhttps://example.com/b", "urls_web", "")
 	if p.status != http.StatusSeeOther || p.location != "/projects/API" {
 		t.Fatalf("create: %d %s %s", p.status, p.location, p.body)
 	}
 	p = admin.get("/projects/API")
-	f.want(p, 200, "&lt;script&gt;alert(1)&lt;/script&gt;", "<strong>world</strong>", "https://example.com/b")
+	f.want(p, 200, "&lt;script&gt;alert(1)&lt;/script&gt;", "<strong>world</strong>", "https://example.com/b",
+		`<span class="swatch tint-ochre"></span>Ochre`)
 	if strings.Contains(p.body, "<script>alert") {
 		t.Error("script rendered unescaped")
 	}
@@ -302,13 +303,26 @@ func TestProjects(t *testing.T) {
 	}
 
 	// Edit, and the second of two edits from the same version conflicts.
-	f.want(admin.get("/projects/API/edit"), 200, `name="version" value="1"`)
-	p = admin.post("/projects/API", "version", "1", "name", "API v2", "state", "active")
+	f.want(admin.get("/projects/API/edit"), 200, `name="version" value="1"`, `<option value="ochre" selected>Ochre</option>`)
+	p = admin.post("/projects/API", "version", "1", "name", "API v2", "state", "active", "color", "indigo")
 	if p.status != http.StatusSeeOther {
 		t.Fatalf("edit: %d %s", p.status, p.body)
 	}
-	f.want(admin.post("/projects/API", "version", "1", "name", "Mine", "state", "dormant"),
-		409, "Someone else changed this project", "API v2", `value="Mine"`, `name="version" value="2"`)
+	if got, _ := f.svc.Project("admin", "API"); got.Color != model.ColorIndigo {
+		t.Errorf("color = %q", got.Color)
+	}
+	f.want(admin.post("/projects/API", "version", "1", "name", "Mine", "state", "dormant", "color", "red"),
+		409, "Someone else changed this project", "API v2", "<dt>Color</dt><dd>Indigo</dd>", `value="Mine"`,
+		`<option value="red" selected>Red</option>`, `name="version" value="2"`)
+	f.want(admin.post("/projects/API", "version", "2", "name", "API v2", "state", "active", "color", "mauve"),
+		422, "unknown project color")
+
+	// A new project is gray unless another color is chosen, and the project
+	// list shows each project's color.
+	f.want(admin.get("/projects/new"), 200, `<option value="gray" selected>Gray</option>`)
+	f.want(admin.get("/projects"), 200,
+		`<td class="project-id"><span class="swatch tint-indigo" role="img" aria-label="Indigo" title="Indigo"></span><a href="/projects/API">API</a>`,
+		`<td class="project-id"><span class="swatch tint-gray" role="img" aria-label="Gray" title="Gray"></span><a href="/projects/WEB">WEB</a>`)
 
 	mem := f.login("mem")
 	f.want(mem.get("/projects/new"), 403)
@@ -568,7 +582,7 @@ func TestTaskAreas(t *testing.T) {
 
 func TestBoard(t *testing.T) {
 	f := newFixture(t)
-	if _, err := f.svc.CreateProject("admin", service.NewProject{ID: "API", Name: "API", State: model.ProjectActive}); err != nil {
+	if _, err := f.svc.CreateProject("admin", service.NewProject{ID: "API", Name: "API", State: model.ProjectActive, Color: model.ColorCyan}); err != nil {
 		t.Fatal(err)
 	}
 	for _, in := range []struct {
@@ -617,10 +631,10 @@ func TestBoard(t *testing.T) {
 	lanes(p, "WEB-3 API-1 WEB-1", "WEB-2", "WEB-5")
 	f.want(p, 200, `aria-current="page">Board</a>`, `<option value="">All projects</option>`,
 		`<span class="area">Web UI</span>`, `<a class="card-title" href="/tasks/WEB-1">Fix the header</a>`,
-		// The top line is tinted by type, and the ID has the type's short
-		// name in front, as in the task list.
-		`<div class="card-top type-task"><span><span class="type"><abbr title="Task">TASK</abbr>:</span> <a class="card-id" href="/tasks/WEB-1">WEB-1</a></span>`,
-		`<div class="card-top type-enhancement"><span><span class="type"><abbr title="Enhancement">ENH</abbr>:</span> <a class="card-id" href="/tasks/API-1">API-1</a></span>`,
+		// The top line is tinted by the project's color, gray by default, and
+		// the ID has the type's short name in front, as in the task list.
+		`<div class="card-top tint-gray"><span><span class="type"><abbr title="Task">TASK</abbr>:</span> <a class="card-id" href="/tasks/WEB-1">WEB-1</a></span>`,
+		`<div class="card-top tint-cyan"><span><span class="type"><abbr title="Enhancement">ENH</abbr>:</span> <a class="card-id" href="/tasks/API-1">API-1</a></span>`,
 		`<span class="pill state-paused">Paused</span>`, `<span class="pill priority priority-1">Critical</span>`,
 		`<h2 id="lane-2">Done <span class="count">1</span></h2>`, `<p class="hint">In the last 36 hours</p>`)
 	if strings.Contains(p.body, `name="all"`) || strings.Contains(p.body, `class="owner"`) {

@@ -9,7 +9,7 @@
   <tbody>
   {{range .Data}}
     <tr>
-      <td><a href="/projects/{{.ID}}">{{.ID}}</a></td>
+      <td class="project-id"><span class="swatch tint-{{.Color}}" role="img" aria-label="{{projectColor .Color}}" title="{{projectColor .Color}}"></span><a href="/projects/{{.ID}}">{{.ID}}</a></td>
       <td><a href="/projects/{{.ID}}">{{.Name}}</a></td>
       <td>{{projectState .State}}</td>
       <td class="num">{{.Open}}</td>

@@ -32,6 +32,17 @@ type boardData struct {
 	Lanes    []boardLane
 }
 
+// Color returns the color of task tid's project, which tints its card.
+func (d boardData) Color(tid string) string {
+	pid, _, _ := model.ParseTaskID(tid)
+	for _, p := range d.Projects {
+		if p.ID == pid {
+			return p.Color
+		}
+	}
+	return model.DefaultProjectColor
+}
+
 func (w *Web) board(rw http.ResponseWriter, r *http.Request, c *ctx) error {
 	q := r.URL.Query()
 	d := boardData{Project: q.Get("project"), All: c.me.Role == model.RoleAdmin && q.Get("all") == "1"}

@@ -8,6 +8,7 @@
   <dl>
     <dt>Name</dt><dd>{{.Name}}</dd>
     <dt>State</dt><dd>{{projectState .State}}</dd>
+    <dt>Color</dt><dd>{{projectColor .Color}}</dd>
     <dt>Description</dt><dd><pre>{{.Description}}</pre></dd>
     {{range $t, $list := .URLs}}<dt>{{urlType $t}} URLs</dt><dd>{{range $list}}{{.}}<br>{{end}}</dd>{{end}}
     <dt>Modified</dt><dd>{{time .Modified}}</dd>
@@ -35,6 +36,14 @@
       {{if not $known}}<option value="{{$d.Form.State}}" selected>{{$d.Form.State}} (unknown)</option>{{end}}
     </select>
     {{with $d.Errors.state}}<span class="error">{{.}}</span>{{end}}
+  </label>
+  <label>Color <span class="hint">tints this project's cards on the board</span>
+    <select name="color">
+      {{$known := false}}
+      {{range projectColors}}<option value="{{.ID}}"{{if eq .ID $d.Form.Color}} selected{{$known = true}}{{end}}>{{.Display}}</option>{{end}}
+      {{if not $known}}<option value="{{$d.Form.Color}}" selected>{{$d.Form.Color}} (unknown)</option>{{end}}
+    </select>
+    {{with $d.Errors.color}}<span class="error">{{.}}</span>{{end}}
   </label>
   <label>Description <span class="hint">Markdown</span>
     <textarea name="description" rows="8">{{$d.Form.Description}}</textarea>

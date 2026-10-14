@@ -179,7 +179,7 @@ func TestCreateProject(t *testing.T) {
 	p, err := s.CreateProject("admin", NewProject{ID: "API", Name: "API",
 		URLs: model.URLs{model.URLCode: {"https://example.com/api"}, model.URLDoc: {}}})
 	f.ok(err)
-	if p.State != model.ProjectPlanned || p.Version != 1 || !p.Created.Equal(t0) {
+	if p.State != model.ProjectPlanned || p.Color != model.ColorGray || p.Version != 1 || !p.Created.Equal(t0) {
 		t.Errorf("project = %+v", p)
 	}
 	if _, ok := p.URLs[model.URLDoc]; ok {
@@ -194,6 +194,8 @@ func TestCreateProject(t *testing.T) {
 	wantInvalid(t, err, "name")
 	_, err = s.CreateProject("admin", NewProject{ID: "NOPE", Name: "x", State: "someday"})
 	wantInvalid(t, err, "state")
+	_, err = s.CreateProject("admin", NewProject{ID: "NOPE", Name: "x", Color: "mauve"})
+	wantInvalid(t, err, "color")
 	_, err = s.CreateProject("admin", NewProject{ID: "NOPE", Name: "x",
 		URLs: model.URLs{model.URLWeb: {"javascript:alert(1)"}}})
 	wantInvalid(t, err, "urls.web[0]")
@@ -247,8 +249,15 @@ func TestUpdateProject(t *testing.T) {
 	if len(p.URLs) != 1 || p.URLs[model.URLCode][0] != "https://c.example" {
 		t.Errorf("urls = %v", p.URLs)
 	}
-	if got := f.reload().Project("WEB"); got.Version != 4 {
-		t.Errorf("version on disk = %d", got.Version)
+	// A project's color can be changed, but not cleared.
+	p, err = s.UpdateProject("admin", "WEB", 4, ProjectPatch{Color: ptr(model.ColorOchre)})
+	f.ok(err)
+	_, err = s.UpdateProject("admin", "WEB", 5, ProjectPatch{Color: ptr("")})
+	wantInvalid(t, err, "color")
+	_, err = s.UpdateProject("admin", "WEB", 5, ProjectPatch{Color: ptr("mauve")})
+	wantInvalid(t, err, "color")
+	if got := f.reload().Project("WEB"); got.Version != 5 || got.Color != model.ColorOchre {
+		t.Errorf("on disk: version %d, color %q", got.Version, got.Color)
 	}
 }
 

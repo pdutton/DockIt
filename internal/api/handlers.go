@@ -34,6 +34,7 @@ func (a *API) createProject(w http.ResponseWriter, r *http.Request, actor string
 		ID          string     `json:"id"`
 		Name        string     `json:"name"`
 		State       string     `json:"state"`
+		Color       string     `json:"color"`
 		Description string     `json:"description"`
 		URLs        model.URLs `json:"urls"`
 	}
@@ -41,7 +42,7 @@ func (a *API) createProject(w http.ResponseWriter, r *http.Request, actor string
 		return err
 	}
 	p, err := a.svc.CreateProject(actor, service.NewProject{
-		ID: in.ID, Name: in.Name, State: in.State, Description: in.Description, URLs: in.URLs,
+		ID: in.ID, Name: in.Name, State: in.State, Color: in.Color, Description: in.Description, URLs: in.URLs,
 	})
 	if err != nil {
 		return err
@@ -61,7 +62,7 @@ func (a *API) updateProject(w http.ResponseWriter, r *http.Request, actor string
 	if err != nil {
 		return err
 	}
-	if err := p.allow(readOnlyRecord, "name", "state", "description", "urls"); err != nil {
+	if err := p.allow(readOnlyRecord, "name", "state", "color", "description", "urls"); err != nil {
 		return err
 	}
 	var patch service.ProjectPatch
@@ -69,6 +70,9 @@ func (a *API) updateProject(w http.ResponseWriter, r *http.Request, actor string
 		return err
 	}
 	if patch.State, err = optional[string](p, "state", false); err != nil {
+		return err
+	}
+	if patch.Color, err = optional[string](p, "color", false); err != nil {
 		return err
 	}
 	if patch.Description, err = optional[string](p, "description", true); err != nil {
@@ -522,6 +526,7 @@ func (a *API) getEnums(w http.ResponseWriter, r *http.Request, actor string) err
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"project_states":   enumValues(model.ProjectStates),
+		"project_colors":   enumValues(model.ProjectColors),
 		"task_states":      enumValues(model.TaskStates),
 		"substates":        subs,
 		"task_types":       enumValues(model.TaskTypes),
