@@ -219,7 +219,7 @@ ul.links form.inline { margin-left: 0.5rem; }
 .tint-brown { --tint-bg: var(--tint-brown-bg); --tint-fg: var(--tint-brown-fg); }
 .swatch {
   display: inline-block; width: 0.8em; height: 0.8em; border-radius: 3px; vertical-align: -0.05em;
-  margin-right: 0.35em; background: var(--tint-bg, var(--tint-gray-bg)); border: 1px solid var(--tint-fg, var(--tint-gray-fg));
+  margin-right: 0.35em; background: var(--tint-bg, var(--tint-gray-bg));
 }
 td.project-id { white-space: nowrap; }
 
