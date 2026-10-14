@@ -74,6 +74,29 @@ The initial list:
 The dataset will reference these by immutable id/value, but these values may be mapped to a
 friendly display string that may change over time.
 
+#### Color
+
+The project's color, chosen from a static list built into DockIt.  Required.  It is chosen when the
+project is created, defaulting to Gray, and can be changed when the project is edited.  Existing
+projects, from before colors were added, are Gray.
+
+The list:
+
+- Red
+- Orange
+- Ochre (golden yellow)
+- Chartreuse
+- Green
+- Cyan
+- Blue
+- Indigo (bluish purple)
+- Purple (reddish purple)
+- Gray
+- Brown
+
+The words in parentheses only describe the colors, and are not displayed.  The dataset will reference
+these by immutable id/value, the names above in lowercase, and DockIt chooses the shades that display them.
+
 #### Description
 
 The project description should allow markdown content.

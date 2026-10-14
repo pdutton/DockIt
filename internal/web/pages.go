@@ -51,13 +51,14 @@ type projectForm struct {
 	ID          string
 	Name        string
 	State       string
+	Color       string
 	Description string
 	URLs        map[string]string // URL type -> one URL per line
 	Version     int
 }
 
 func projectFormFrom(p *model.Project) projectForm {
-	f := projectForm{ID: p.ID, Name: p.Name, State: p.State, Description: p.Description,
+	f := projectForm{ID: p.ID, Name: p.Name, State: p.State, Color: p.Color, Description: p.Description,
 		URLs: map[string]string{}, Version: p.Version}
 	for k, v := range p.URLs {
 		f.URLs[k] = strings.Join(v, "\n")
@@ -70,6 +71,7 @@ func readProjectForm(r *http.Request) projectForm {
 		ID:          strings.TrimSpace(r.PostForm.Get("id")),
 		Name:        r.PostForm.Get("name"),
 		State:       r.PostForm.Get("state"),
+		Color:       r.PostForm.Get("color"),
 		Description: normalizeNewlines(r.PostForm.Get("description")),
 		URLs:        map[string]string{},
 		Version:     formInt(r, "version"),
@@ -137,14 +139,14 @@ func (w *Web) projectNew(rw http.ResponseWriter, r *http.Request, c *ctx) error 
 		return service.ErrForbidden
 	}
 	w.render(rw, r, c, http.StatusOK, "project_form", "New project",
-		projectFormData{New: true, Form: projectForm{State: model.ProjectPlanned}})
+		projectFormData{New: true, Form: projectForm{State: model.ProjectPlanned, Color: model.DefaultProjectColor}})
 	return nil
 }
 
 func (w *Web) projectCreate(rw http.ResponseWriter, r *http.Request, c *ctx) error {
 	f := readProjectForm(r)
 	p, err := w.svc.CreateProject(c.me.ID, service.NewProject{
-		ID: f.ID, Name: f.Name, State: f.State, Description: f.Description, URLs: f.urls(),
+		ID: f.ID, Name: f.Name, State: f.State, Color: f.Color, Description: f.Description, URLs: f.urls(),
 	})
 	if err != nil {
 		fields, _, ok := formErrors(err)
@@ -175,7 +177,7 @@ func (w *Web) projectUpdate(rw http.ResponseWriter, r *http.Request, c *ctx) err
 	f.ID = r.PathValue("pid")
 	urls := f.urls()
 	p, err := w.svc.UpdateProject(c.me.ID, f.ID, f.Version, service.ProjectPatch{
-		Name: &f.Name, State: &f.State, Description: &f.Description, URLs: &urls,
+		Name: &f.Name, State: &f.State, Color: &f.Color, Description: &f.Description, URLs: &urls,
 	})
 	if err != nil {
 		fields, current, ok := formErrors(err)

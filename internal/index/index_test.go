@@ -42,9 +42,10 @@ func newDataset(t *testing.T) string {
 	bob, bobAuth := user("bob", model.RoleMember)
 	must(t, s.WriteUser(bob))
 	must(t, s.WriteAuth(bobAuth))
-	for _, pid := range []string{"WEB", "API"} {
+	// API has no color, as in a project from before format 2.4.
+	for pid, color := range map[string]string{"WEB": model.ColorBlue, "API": ""} {
 		must(t, s.WriteProject(&model.Project{ID: pid, Version: 1, Name: pid + " project",
-			State: model.ProjectActive, Created: ts, Modified: ts,
+			State: model.ProjectActive, Color: color, Created: ts, Modified: ts,
 			URLs: model.URLs{model.URLCode: {"https://example.com/" + pid}}}))
 	}
 	for _, tid := range []string{"WEB-1", "WEB-2", "WEB-10"} {
@@ -77,6 +78,9 @@ func TestLoad(t *testing.T) {
 	}
 	if strings.Join(pids, ",") != "API,WEB" {
 		t.Errorf("projects = %v", pids)
+	}
+	if web, api := x.Project("WEB").Color, x.Project("API").Color; web != model.ColorBlue || api != model.ColorGray {
+		t.Errorf("colors = %q, %q; want blue, and gray for a project with none", web, api)
 	}
 
 	var tids []string

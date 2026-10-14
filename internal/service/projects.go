@@ -12,6 +12,7 @@ type NewProject struct {
 	ID          string
 	Name        string
 	State       string // defaults to planned
+	Color       string // defaults to gray
 	Description string
 	URLs        model.URLs
 }
@@ -21,6 +22,7 @@ type NewProject struct {
 type ProjectPatch struct {
 	Name        *string
 	State       *string
+	Color       *string
 	Description *string
 	URLs        *model.URLs
 }
@@ -68,6 +70,7 @@ func (s *Service) CreateProject(actor string, in NewProject) (*model.Project, er
 		Version:     1,
 		Name:        in.Name,
 		State:       in.State,
+		Color:       in.Color,
 		Description: in.Description,
 		URLs:        compactURLs(in.URLs),
 		Created:     now,
@@ -75,6 +78,9 @@ func (s *Service) CreateProject(actor string, in NewProject) (*model.Project, er
 	}
 	if p.State == "" {
 		p.State = model.ProjectPlanned
+	}
+	if p.Color == "" {
+		p.Color = model.DefaultProjectColor
 	}
 	if err := validate(p.Validate(), all); err != nil {
 		return nil, err
@@ -105,6 +111,7 @@ func (s *Service) UpdateProject(actor, pid string, version int, patch ProjectPat
 	changed := fieldSet{}
 	set(&p.Name, patch.Name, "name", changed)
 	set(&p.State, patch.State, "state", changed)
+	set(&p.Color, patch.Color, "color", changed)
 	set(&p.Description, patch.Description, "description", changed)
 	if patch.URLs != nil {
 		before := p.URLs

@@ -178,6 +178,7 @@ Format history:
 | 2.2    | `links.yaml`, optional, with the link types `related`, `conflicts`,    |
 |        | `depends`, `blocks` and `duplicates`.                                  |
 | 2.3    | Task `area`, optional.                                                 |
+| 2.4    | Project `color`, optional on disk: a project without one is `gray`.    |
 
 ### Record formats
 
@@ -192,6 +193,7 @@ id: WEB
 version: 4
 name: Website Redesign
 state: active
+color: blue                     # absent before format 2.4, and read as gray
 description: |
   Markdown text.
 urls:                           # optional; map of URL type -> ordered list
@@ -264,6 +266,9 @@ Notes:
   type is its primary.  Order between types is not significant; keys are written in the enumeration's
   built-in order and empty lists are omitted.  The REST API uses the same shape.
 - The task's project is implied by its ID prefix and its directory; it is not stored separately.
+- A project's `color` is required, but a project written before format 2.4 has none, and is read as
+  `gray`.  Format 2.4 is a minor update, so those files are not rewritten; each gets its color the
+  next time the project is saved.
 
 #### Links
 
@@ -331,6 +336,7 @@ Built into the implementation as a table of stable id → display string:
 | Kind          | Stored ids                                             |
 |---------------|--------------------------------------------------------|
 | Project state | `planned`, `active`, `inactive`, `dormant`, `complete` |
+| Project color | `red`, `orange`, `ochre`, `chartreuse`, `green`, `cyan`, `blue`, `indigo`, `purple`, `gray`, `brown` (displayed as Red, Orange, and so on) |
 | Task state    | `new`, `in_progress`, `deferred`, `paused`, `complete` |
 | Substate      | `complete`: `done`, `rejected`, `duplicate`            |
 | Task type     | `bugfix`, `enhancement`, `feature`, `task`, `documentation`, `research` (displayed as Bug Fix, Enhancement, Feature, Task, Documentation, Research) |
@@ -548,11 +554,15 @@ through after someone else's edit.)
   task's abbreviated type and ID, as `ENH: WEB-1`, and its area, its title clamped to three lines,
   and its state and priority as pills.  Priority pills are outlined, so they never read as states.
   The page reads the whole index, as the task lists do.
-- A card's top line, with the type, ID and area, is tinted by the task's type: Bug Fix red,
-  Enhancement violet, Feature teal, Documentation sky blue, Research orange, and Task, the default,
-  neutral grey, as is any unknown type.  Each tint has its own text colour, in light and dark themes,
-  so the line stays readable; the type's short name is always there too, so colour is never the only
-  cue.
+- A card's top line, with the type, ID and area, is tinted by the color of the task's project, so a
+  project's cards are easy to pick out.  Each color has a tint for light and for dark themes, all of
+  about the same lightness, so no project shouts louder than another, and its own text color, at
+  least 6.6:1 against the tint.  An unknown color is gray.  The ID starts with the project's ID, so
+  color is never the only cue.  (Rejected: tinting by task type, as DockIt 2.3 did; the type's short
+  name is on the line anyway.)
+- A project's color is chosen in its form, Gray by default, and shown on its page and in the
+  project list as a swatch of its tint.  The color ids are symbolic names: the stylesheet maps each
+  to its shades, which can change without touching the dataset.
 - The project list shows each project's number of open tasks: those in any state but Complete and
   Deferred, the ones its task list shows when first opened.  Counting walks the in-memory index once.
 - A task's links are listed one per line, ordered by their wording from that task (Blocks, Blocked by,
@@ -635,7 +645,7 @@ GET    /api/v1/me/tokens                        list own tokens (metadata only)
 POST   /api/v1/me/tokens                        create; token returned once
 DELETE /api/v1/me/tokens/{id}                   revoke
 
-GET    /api/v1/enums                            states, substates, task types, URL types, link types, transitions, roles, display strings
+GET    /api/v1/enums                            states, project colors, substates, task types, URL types, link types, transitions, roles, display strings
 ```
 
 - `PATCH` bodies are JSON Merge Patch (RFC 7396).
@@ -665,6 +675,7 @@ Enforced in the service layer, identically for both interfaces:
 | URLs                      | absolute `http`/`https`, up to 2 KiB each; key must be a known URL type for a project, or task URL type for a task |
 | Priority                  | integer 1–5, default 3                             |
 | Task type                 | a known type, default `task`                       |
+| Project color             | a known color, default `gray`                      |
 | Found in, resolved in     | optional, up to 50 characters, no control characters; free-form, so any versioning scheme works |
 | Area                      | optional, up to 50 characters, no control characters, no leading or trailing spaces; free-form |
 | Owner                     | an existing active user                            |

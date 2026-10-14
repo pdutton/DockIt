@@ -280,6 +280,10 @@ func (l *loader) loadProject(pdir, pid string) {
 	case err != nil:
 		l.readErr(path, err)
 	default:
+		// Projects from before format 2.4 have no color on disk.
+		if p.Color == "" {
+			p.Color = model.DefaultProjectColor
+		}
 		l.fieldErrors(path, p.Validate())
 		if p.ID != pid {
 			l.errorf(path, "id", "%q does not match the directory name", p.ID)

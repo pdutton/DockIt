@@ -4,7 +4,7 @@
   <h1><span class="id">{{$p.ID}}</span> {{$p.Name}}</h1>
   {{if isAdmin .Me}}<a class="button secondary" href="/projects/{{$p.ID}}/edit">Edit project</a>{{end}}
 </div>
-<p class="meta">{{projectState $p.State}} · created {{time $p.Created}} · modified {{time $p.Modified}}</p>
+<p class="meta">{{projectState $p.State}} · <span class="swatch tint-{{$p.Color}}"></span>{{projectColor $p.Color}} · created {{time $p.Created}} · modified {{time $p.Modified}}</p>
 {{with $p.Description}}<div class="markdown">{{markdown .}}</div>{{end}}
 {{if $p.URLs}}
 <dl class="urls">

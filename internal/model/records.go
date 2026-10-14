@@ -22,7 +22,7 @@ type Format struct {
 // earlier minor of the same major, updating the dataset's format to this one
 // when it opens it for writing, and upgrades any earlier major from
 // FormatMin.
-var FormatCurrent = Format{Major: 2, Minor: 3}
+var FormatCurrent = Format{Major: 2, Minor: 4}
 
 // FormatMin is the oldest major format this build can upgrade.
 const FormatMin = 1
@@ -43,6 +43,10 @@ const DefaultPriority = 3
 
 // DefaultTaskType is the type of a task when none is given.
 const DefaultTaskType = TypeTask
+
+// DefaultProjectColor is the color of a project when none is given, and of
+// every project from before format 2.4, which have none on disk.
+const DefaultProjectColor = ColorGray
 
 // Struct field order below is the order fields are written to disk, so that
 // files diff cleanly.  Do not reorder fields casually.
@@ -67,6 +71,7 @@ type Project struct {
 	Version     int       `yaml:"version" json:"version"`
 	Name        string    `yaml:"name" json:"name"`
 	State       string    `yaml:"state" json:"state"`
+	Color       string    `yaml:"color,omitempty" json:"color"` // absent before format 2.4; see DefaultProjectColor
 	Description string    `yaml:"description,omitempty" json:"description,omitempty"`
 	URLs        URLs      `yaml:"urls,omitempty" json:"urls,omitempty"`
 	Created     time.Time `yaml:"created" json:"created"`

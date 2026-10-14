@@ -326,7 +326,7 @@ func TestRejectsBadIDs(t *testing.T) {
 func TestProjectFormat(t *testing.T) {
 	s := newDataset(t)
 	p := &model.Project{
-		ID: "WEB", Version: 4, Name: "Website Redesign", State: model.ProjectActive,
+		ID: "WEB", Version: 4, Name: "Website Redesign", State: model.ProjectActive, Color: model.ColorBlue,
 		Description: "Markdown text.\n",
 		URLs: model.URLs{
 			model.URLWeb:  {"https://example.com"},
@@ -342,6 +342,7 @@ func TestProjectFormat(t *testing.T) {
 version: 4
 name: Website Redesign
 state: active
+color: blue
 description: |
   Markdown text.
 urls:
