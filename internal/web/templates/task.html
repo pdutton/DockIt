@@ -15,6 +15,7 @@
     </form>
     {{- end}}{{end}}</dd>
   <dt>Priority</dt><dd>{{priority $t.Priority}}</dd>
+  {{with $t.Area}}<dt>Area</dt><dd>{{.}}</dd>{{end}}
   {{with $t.FoundIn}}<dt>Found in</dt><dd>{{.}}</dd>{{end}}
   {{with $t.ResolvedIn}}<dt>Resolved in</dt><dd>{{.}}</dd>{{end}}
   <dt>Owner</dt><dd>{{$t.Owner}}</dd>
@@ -44,6 +45,7 @@
       <dt>Type</dt><dd>{{taskType .Type}}</dd>
       <dt>State</dt><dd>{{taskState .State}}{{if .Substate}} ({{substate .State .Substate}}){{end}}</dd>
       <dt>Priority</dt><dd>{{priority .Priority}}</dd>
+      <dt>Area</dt><dd>{{.Area}}</dd>
       <dt>Found in</dt><dd>{{.FoundIn}}</dd>
       <dt>Resolved in</dt><dd>{{.ResolvedIn}}</dd>
       <dt>Owner</dt><dd>{{.Owner}}</dd>

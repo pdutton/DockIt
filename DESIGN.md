@@ -177,6 +177,7 @@ Format history:
 | 2.1    | `format_minor` in `dockit.yaml`, optional.                             |
 | 2.2    | `links.yaml`, optional, with the link types `related`, `conflicts`,    |
 |        | `depends`, `blocks` and `duplicates`.                                  |
+| 2.3    | Task `area`, optional.                                                 |
 
 ### Record formats
 
@@ -230,6 +231,7 @@ owner: pdutton
 state: complete
 substate: done
 priority: 3
+area: Web UI                    # optional; the part of the project the task belongs to
 found_in: 1.0.3                 # optional; version the issue was found or introduced in
 resolved_in: 1.1.0              # optional; version it was resolved in
 urls:                           # optional; map of task URL type -> ordered list
@@ -558,6 +560,14 @@ through after someone else's edit.)
   plain link carrying the current filter (`?sort=title&reverse=1&state=...`), so no script is needed;
   the filter form carries the sort in hidden fields.  The REST API still sorts only by `id`,
   `priority` or `modified`, forwards only.
+- A task list is grouped by area once any task in it has one.  Each area is a `tbody` headed by a row
+  with its name and task count; areas come in alphabetical order ignoring case, then "No area".  The
+  sort applies within each group.  Areas are compared exactly, so `Web` and `web` are two areas, and
+  validation refuses leading and trailing spaces, which the task form trims.
+- An area is free text rather than a choice from a per-project list, so it needs no project field
+  and no rules for renaming or removing an area.  To keep tasks together, the task form suggests the
+  areas already used in the project, with an HTML `datalist`.  Renaming an area means editing each of
+  its tasks.  (Rejected for now: areas defined on the project by an admin.)
 - Go `html/template` escapes all plain-text fields automatically.
 - Markdown fields (project and task descriptions, comments) are rendered with a CommonMark renderer, then
   passed through an allow-list HTML sanitizer, with raw HTML disabled in the renderer as well.
@@ -642,6 +652,7 @@ Enforced in the service layer, identically for both interfaces:
 | Priority                  | integer 1–5, default 3                             |
 | Task type                 | a known type, default `task`                       |
 | Found in, resolved in     | optional, up to 50 characters, no control characters; free-form, so any versioning scheme works |
+| Area                      | optional, up to 50 characters, no control characters, no leading or trailing spaces; free-form |
 | Owner                     | an existing active user                            |
 | Link                      | a known relation; both tasks exist and are different tasks |
 

@@ -451,6 +451,50 @@ func TestTaskVersionFields(t *testing.T) {
 	}
 }
 
+func TestTaskAreas(t *testing.T) {
+	f := newFixture(t)
+	s := f.s
+	_, err := s.CreateProject("admin", NewProject{ID: "API", Name: "API"})
+	f.ok(err)
+	for _, in := range []struct{ pid, area string }{
+		{"WEB", "web"}, {"WEB", "Packaging"}, {"WEB", ""}, {"WEB", "Web"}, {"WEB", "Packaging"}, {"API", "Docs"},
+	} {
+		_, err := s.CreateTask("mem", in.pid, NewTask{Title: "T", Area: in.area})
+		f.ok(err)
+	}
+
+	// Each area once, ignoring case to order them but not to tell them apart.
+	areas, err := s.Areas("view", "WEB")
+	f.ok(err)
+	if got := strings.Join(areas, ","); got != "Packaging,Web,web" {
+		t.Errorf("areas = %s", got)
+	}
+	_, err = s.Areas("view", "NOPE")
+	wantErr(t, err, ErrNotFound)
+	_, err = s.Areas("nobody", "WEB")
+	wantErr(t, err, ErrForbidden)
+
+	// An area can be changed and cleared.
+	task, err := s.UpdateTask("mem", "WEB-3", 1, TaskPatch{Area: ptr("Docs")})
+	f.ok(err)
+	if task.Area != "Docs" || task.Version != 2 {
+		t.Errorf("task = %+v", task)
+	}
+	task, err = s.UpdateTask("mem", "WEB-3", 2, TaskPatch{Area: ptr("")})
+	f.ok(err)
+	if task.Area != "" {
+		t.Errorf("area = %q", task.Area)
+	}
+	if x := f.reload(); x.Task("WEB-2").Area != "Packaging" || x.Task("WEB-3").Area != "" {
+		t.Error("areas on disk wrong")
+	}
+
+	for _, bad := range []string{" Web", "Web ", "Web\tUI", strings.Repeat("a", model.MaxAreaLen+1)} {
+		_, err = s.CreateTask("mem", "WEB", NewTask{Title: "T", Area: bad})
+		wantInvalid(t, err, "area")
+	}
+}
+
 func TestTaskURLs(t *testing.T) {
 	f := newFixture(t)
 	s := f.s

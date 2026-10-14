@@ -367,7 +367,7 @@ func TestTaskFormat(t *testing.T) {
 	task := &model.Task{
 		ID: "WEB-12", Version: 7, Title: "Replace The Header Logo", Type: model.TypeBugfix, Description: "Markdown text.\n",
 		Creator: "pdutton", Owner: "pdutton", State: model.TaskComplete, Substate: model.SubstateDone,
-		Priority: 3, FoundIn: "1.0.3", ResolvedIn: "1.1.0", Created: ts1, Modified: ts2,
+		Priority: 3, Area: "Web UI", FoundIn: "1.0.3", ResolvedIn: "1.1.0", Created: ts1, Modified: ts2,
 		URLs: model.URLs{model.URLPR: {"https://github.com/example/site/pull/7"}},
 		Comments: []model.Comment{{
 			ID: 1, Version: 1, Commenter: "pdutton", Created: ts1, Modified: ts1, Text: "Markdown text.\n",
@@ -388,6 +388,7 @@ owner: pdutton
 state: complete
 substate: done
 priority: 3
+area: Web UI
 found_in: 1.0.3
 resolved_in: 1.1.0
 urls:

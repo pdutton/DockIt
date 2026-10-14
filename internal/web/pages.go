@@ -275,6 +275,48 @@ func (d projectViewData) Headings() []taskHeading {
 	return hs
 }
 
+// ColumnCount is the number of columns in the task list.
+func (projectViewData) ColumnCount() int { return len(taskColumns) }
+
+// taskGroup is the tasks in a task list that share an area.
+type taskGroup struct {
+	Area  string // "" for tasks with no area
+	Tasks []*model.Task
+}
+
+// Grouped reports whether the task list is shown in groups: whether any
+// listed task has an area.
+func (d projectViewData) Grouped() bool {
+	return slices.ContainsFunc(d.Tasks, func(t *model.Task) bool { return t.Area != "" })
+}
+
+// Groups returns the listed tasks grouped by area, each group in the list's
+// sort order.  The areas come in service.CompareAreas order, then the tasks
+// with no area.
+func (d projectViewData) Groups() []taskGroup {
+	var groups []taskGroup
+	at := map[string]int{} // area -> index in groups
+	for _, t := range d.Tasks {
+		i, ok := at[t.Area]
+		if !ok {
+			i = len(groups)
+			at[t.Area] = i
+			groups = append(groups, taskGroup{Area: t.Area})
+		}
+		groups[i].Tasks = append(groups[i].Tasks, t)
+	}
+	slices.SortFunc(groups, func(a, b taskGroup) int {
+		switch {
+		case a.Area == "":
+			return 1
+		case b.Area == "":
+			return -1
+		}
+		return service.CompareAreas(a.Area, b.Area)
+	})
+	return groups
+}
+
 // openStates are the states a task list shows when first opened.
 func openStates() []string {
 	var ids []string
@@ -330,6 +372,7 @@ type taskForm struct {
 	State       string
 	Substate    string
 	Priority    int
+	Area        string
 	FoundIn     string
 	ResolvedIn  string
 	URLs        map[string]string // by URL type, one per line
@@ -338,7 +381,7 @@ type taskForm struct {
 
 func taskFormFrom(t *model.Task) taskForm {
 	f := taskForm{t.Title, t.Type, t.Description, t.Owner, t.State, t.Substate, t.Priority,
-		t.FoundIn, t.ResolvedIn, map[string]string{}, t.Version}
+		t.Area, t.FoundIn, t.ResolvedIn, map[string]string{}, t.Version}
 	for k, v := range t.URLs {
 		f.URLs[k] = strings.Join(v, "\n")
 	}
@@ -354,6 +397,7 @@ func readTaskForm(r *http.Request) taskForm {
 		State:       r.PostForm.Get("state"),
 		Substate:    r.PostForm.Get("substate"),
 		Priority:    formInt(r, "priority"),
+		Area:        strings.TrimSpace(r.PostForm.Get("area")),
 		FoundIn:     strings.TrimSpace(r.PostForm.Get("found_in")),
 		ResolvedIn:  strings.TrimSpace(r.PostForm.Get("resolved_in")),
 		URLs:        map[string]string{},
@@ -386,6 +430,7 @@ type taskNewData struct {
 	Form    taskForm
 	Errors  map[string]string
 	Owners  []*model.User
+	Areas   []string // suggested in the form
 }
 
 func (w *Web) taskNew(rw http.ResponseWriter, r *http.Request, c *ctx) error {
@@ -400,8 +445,12 @@ func (w *Web) taskNew(rw http.ResponseWriter, r *http.Request, c *ctx) error {
 	if err != nil {
 		return err
 	}
+	areas, err := w.svc.Areas(c.me.ID, p.ID)
+	if err != nil {
+		return err
+	}
 	w.render(rw, r, c, http.StatusOK, "task_new", "New task in "+p.Name, taskNewData{
-		Project: p, Owners: owners,
+		Project: p, Owners: owners, Areas: areas,
 		Form: taskForm{Type: model.DefaultTaskType, Owner: c.me.ID, State: model.TaskNew, Priority: model.DefaultPriority},
 	})
 	return nil
@@ -413,7 +462,7 @@ func (w *Web) taskCreate(rw http.ResponseWriter, r *http.Request, c *ctx) error 
 	t, err := w.svc.CreateTask(c.me.ID, pid, service.NewTask{
 		Title: f.Title, Type: f.Type, Description: f.Description, Owner: f.Owner,
 		State: f.State, Substate: f.Substate, Priority: f.Priority,
-		FoundIn: f.FoundIn, ResolvedIn: f.ResolvedIn, URLs: parseURLs(f.URLs),
+		Area: f.Area, FoundIn: f.FoundIn, ResolvedIn: f.ResolvedIn, URLs: parseURLs(f.URLs),
 	})
 	if err != nil {
 		fields, _, ok := formErrors(err)
@@ -428,8 +477,12 @@ func (w *Web) taskCreate(rw http.ResponseWriter, r *http.Request, c *ctx) error 
 		if err != nil {
 			return err
 		}
+		areas, err := w.svc.Areas(c.me.ID, p.ID)
+		if err != nil {
+			return err
+		}
 		w.render(rw, r, c, http.StatusUnprocessableEntity, "task_new", "New task in "+p.Name,
-			taskNewData{Project: p, Form: f, Errors: fields, Owners: owners})
+			taskNewData{Project: p, Form: f, Errors: fields, Owners: owners, Areas: areas})
 		return nil
 	}
 	return redirect(rw, r, "/tasks/"+t.ID)
@@ -439,6 +492,7 @@ type taskViewData struct {
 	Task     *model.Task
 	Project  *model.Project
 	Owners   []*model.User
+	Areas    []string // suggested in the form
 	Form     taskForm
 	Errors   map[string]string
 	Conflict *model.Task
@@ -478,6 +532,9 @@ func (w *Web) taskPage(rw http.ResponseWriter, r *http.Request, c *ctx, status i
 	if data.Owners, err = w.activeUsers(c, data.Task.Owner); err != nil {
 		return err
 	}
+	if data.Areas, err = w.svc.Areas(c.me.ID, p.ID); err != nil {
+		return err
+	}
 	w.render(rw, r, c, status, "task", t.ID+": "+t.Title, data)
 	return nil
 }
@@ -493,7 +550,7 @@ func (w *Web) taskUpdate(rw http.ResponseWriter, r *http.Request, c *ctx) error 
 	_, err := w.svc.UpdateTask(c.me.ID, tid, f.Version, service.TaskPatch{
 		Title: &f.Title, Type: &f.Type, Description: &f.Description, Owner: &f.Owner,
 		State: &f.State, Substate: &f.Substate, Priority: &f.Priority,
-		FoundIn: &f.FoundIn, ResolvedIn: &f.ResolvedIn, URLs: &urls,
+		Area: &f.Area, FoundIn: &f.FoundIn, ResolvedIn: &f.ResolvedIn, URLs: &urls,
 	})
 	if err != nil {
 		fields, current, ok := formErrors(err)

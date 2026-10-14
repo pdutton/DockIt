@@ -48,11 +48,17 @@
 
 {{if .Data.Tasks}}
 {{/* Only the title wraps; the other columns keep their natural width.
-     Each heading sorts by its column, and the current one reverses it. */}}
+     Each heading sorts by its column, and the current one reverses it.
+     Each area is a tbody with a heading row, once any listed task has one. */}}
+{{$grouped := .Data.Grouped}}
 <table class="tasks">
   <thead><tr>{{range .Data.Headings}}<th{{with .Class}} class="{{.}}"{{end}}{{with .Order}} aria-sort="{{.}}"{{end}}><a href="{{.Link}}">{{.Label}}</a></th>{{end}}</tr></thead>
+  {{range .Data.Groups}}
   <tbody>
-  {{range .Data.Tasks}}
+  {{if $grouped}}
+    <tr class="area"><th colspan="{{$.Data.ColumnCount}}" scope="rowgroup">{{with .Area}}{{.}}{{else}}No area{{end}} <span class="count">{{len .Tasks}}</span></th></tr>
+  {{end}}
+  {{range .Tasks}}
     <tr>
       <td><a href="/tasks/{{.ID}}">{{.ID}}</a></td>
       <td class="title">{{with .Type}}<span class="type">{{taskTypeShort .}}:</span> {{end}}<a href="/tasks/{{.ID}}">{{.Title}}</a></td>
@@ -63,6 +69,7 @@
     </tr>
   {{end}}
   </tbody>
+  {{end}}
 </table>
 {{else}}
 <p>No tasks match.</p>

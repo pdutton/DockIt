@@ -500,6 +500,69 @@ func TestTaskListSorting(t *testing.T) {
 	f.want(p, 200, `<th aria-sort="descending"><a href="?sort=id">ID</a></th>`)
 }
 
+func TestTaskAreas(t *testing.T) {
+	f := newFixture(t)
+	for _, in := range []service.NewTask{
+		{Title: "a", Area: "Web UI"},
+		{Title: "b", State: model.TaskPaused},
+		{Title: "c", Area: "Packaging"},
+		{Title: "d", Area: "Web UI"},
+	} {
+		if _, err := f.svc.CreateTask("mem", "WEB", in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mem := f.login("mem")
+	// inOrder checks that the page has each of parts, in that order.
+	inOrder := func(p page, parts ...string) {
+		t.Helper()
+		last := -1
+		for _, s := range parts {
+			i := strings.Index(p.body, s)
+			if i <= last {
+				t.Errorf("%q missing or out of order, want %q:\n%s", s, parts, p.body)
+				return
+			}
+			last = i
+		}
+	}
+	heading := func(area string, n int) string {
+		return fmt.Sprintf(`<tr class="area"><th colspan="6" scope="rowgroup">%s <span class="count">%d</span></th></tr>`, area, n)
+	}
+
+	// Areas in order, then the tasks with none, each in the list's sort order.
+	inOrder(mem.get("/projects/WEB"), heading("Packaging", 1), "WEB-3", heading("Web UI", 2), "WEB-1", "WEB-4",
+		heading("No area", 1), "WEB-2")
+	inOrder(mem.get("/projects/WEB?sort=title&reverse=1"), heading("Packaging", 1), heading("Web UI", 2), "WEB-4", "WEB-1",
+		heading("No area", 1))
+	// A list with no area in it is not grouped.
+	if p := mem.get("/projects/WEB?state=paused"); !strings.Contains(p.body, "WEB-2") || strings.Contains(p.body, `class="area"`) {
+		t.Errorf("ungrouped list:\n%s", p.body)
+	}
+
+	// The task page shows the area, and the form suggests the project's areas.
+	datalist := `<datalist id="areas"><option value="Packaging"><option value="Web UI"></datalist>`
+	f.want(mem.get("/tasks/WEB-1"), 200, "<dt>Area</dt><dd>Web UI</dd>", `name="area" value="Web UI"`, datalist)
+	if p := mem.get("/tasks/WEB-2"); strings.Contains(p.body, "<dt>Area</dt>") {
+		t.Error("empty area shown")
+	}
+	f.want(mem.get("/projects/WEB/tasks/new"), 200, `name="area" value=""`, datalist)
+
+	// The form trims the area.
+	p := mem.post("/tasks/WEB-2", "version", "1", "title", "b", "type", "task", "owner", "mem",
+		"state", "paused", "priority", "3", "area", " Packaging ")
+	if p.status != http.StatusSeeOther {
+		t.Fatalf("edit: %d %s", p.status, p.body)
+	}
+	if task, _ := f.svc.Task("mem", "WEB-2"); task.Area != "Packaging" {
+		t.Errorf("area = %q", task.Area)
+	}
+	inOrder(mem.get("/projects/WEB"), heading("Packaging", 2), "WEB-2", "WEB-3", heading("Web UI", 2))
+	if strings.Contains(mem.get("/projects/WEB").body, "No area") {
+		t.Error("No area group shown with no tasks in it")
+	}
+}
+
 func TestTransitions(t *testing.T) {
 	f := newFixture(t)
 	if _, err := f.svc.CreateTask("mem", "WEB", service.NewTask{Title: "Sign the binaries"}); err != nil {

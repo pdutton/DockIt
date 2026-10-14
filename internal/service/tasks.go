@@ -19,6 +19,7 @@ type NewTask struct {
 	State       string // defaults to new
 	Substate    string
 	Priority    int // defaults to 3
+	Area        string
 	FoundIn     string
 	ResolvedIn  string
 	URLs        model.URLs
@@ -33,6 +34,7 @@ type TaskPatch struct {
 	State       *string
 	Substate    *string
 	Priority    *int
+	Area        *string
 	FoundIn     *string
 	ResolvedIn  *string
 	URLs        *model.URLs
@@ -148,6 +150,35 @@ func (s *Service) TaskCounts(actor string, states []string) (map[string]int, err
 	return s.x.TaskCounts(states), nil
 }
 
+// Areas returns the areas that tasks of project pid belong to, each once,
+// in CompareAreas order.
+func (s *Service) Areas(actor, pid string) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if _, err := s.authorize(actor, anyone); err != nil {
+		return nil, err
+	}
+	if s.x.Project(pid) == nil {
+		return nil, ErrNotFound
+	}
+	seen := map[string]bool{}
+	var areas []string
+	for _, t := range s.x.Tasks(pid) {
+		if t.Area != "" && !seen[t.Area] {
+			seen[t.Area] = true
+			areas = append(areas, t.Area)
+		}
+	}
+	slices.SortFunc(areas, CompareAreas)
+	return areas, nil
+}
+
+// CompareAreas orders area names alphabetically, ignoring case.  Names that
+// differ only in case are different areas, ordered by their exact text.
+func CompareAreas(a, b string) int {
+	return cmp.Or(cmp.Compare(strings.ToLower(a), strings.ToLower(b)), cmp.Compare(a, b))
+}
+
 // Task returns task tid.
 func (s *Service) Task(actor, tid string) (*model.Task, error) {
 	s.mu.RLock()
@@ -186,6 +217,7 @@ func (s *Service) CreateTask(actor, pid string, in NewTask) (*model.Task, error)
 		State:       cmp.Or(in.State, model.TaskNew),
 		Substate:    in.Substate,
 		Priority:    cmp.Or(in.Priority, model.DefaultPriority),
+		Area:        in.Area,
 		FoundIn:     in.FoundIn,
 		ResolvedIn:  in.ResolvedIn,
 		URLs:        compactURLs(in.URLs),
@@ -261,6 +293,7 @@ func (s *Service) patchTask(t *model.Task, patch TaskPatch) (*model.Task, error)
 	set(&t.State, patch.State, "state", changed)
 	set(&t.Substate, patch.Substate, "substate", changed)
 	set(&t.Priority, patch.Priority, "priority", changed)
+	set(&t.Area, patch.Area, "area", changed)
 	set(&t.FoundIn, patch.FoundIn, "found_in", changed)
 	set(&t.ResolvedIn, patch.ResolvedIn, "resolved_in", changed)
 	if patch.URLs != nil {
