@@ -695,7 +695,8 @@ Enforced in the service layer, identically for both interfaces:
 Commands other than `serve` that modify the dataset (`init`, `upgrade`) take the same lock.
 
 `serve` exits with status 78 (`EX_CONFIG` from `sysexits.h`) when it cannot start until an operator fixes
-its settings or the dataset: no dataset yet, dataset errors, a newer format, or a lock it may not remove.
+its settings or the dataset: no dataset yet, dataset errors, a newer format, a lock it may not remove, or a
+TLS certificate or key it cannot read or use.  It loads the certificate before it opens the dataset.
 A service manager should not restart it then, and the systemd unit (`packaging/systemd/dockit.service`)
 does not.  Failing to listen exits 1, because a port in use may come free.  When `$NOTIFY_SOCKET` is
 set, `serve` sends systemd `READY=1` once it is listening and `STOPPING=1` when it shuts down

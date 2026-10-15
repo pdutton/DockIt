@@ -3,9 +3,17 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"log/slog"
+	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -13,6 +21,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pdutton/DockIt/internal/auth"
 	"github.com/pdutton/DockIt/internal/model"
@@ -347,6 +356,152 @@ func TestServeFlags(t *testing.T) {
 	}
 	if r := dockit(t, "", nil, "serve", t.TempDir()); r.code != exitConfig || !strings.Contains(r.stderr, "not a DockIt dataset") {
 		t.Errorf("serve on non-dataset: %+v", r)
+	}
+}
+
+// writeCert writes a self-signed certificate for localhost and 127.0.0.1, valid
+// until notAfter, and its key, and returns their paths.
+func writeCert(t *testing.T, notAfter time.Time) (certFile, keyFile string) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "localhost"},
+		DNSNames:     []string{"localhost"},
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1)},
+		NotBefore:    notAfter.Add(-48 * time.Hour),
+		NotAfter:     notAfter,
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	certFile, keyFile = filepath.Join(dir, "cert.pem"), filepath.Join(dir, "key.pem")
+	if err := os.WriteFile(certFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(keyFile, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return certFile, keyFile
+}
+
+func TestServeTLS(t *testing.T) {
+	dir := initDataset(t)
+	certFile, keyFile := writeCert(t, time.Now().Add(24*time.Hour))
+	var logBuf bytes.Buffer
+	ctx, cancel := context.WithCancel(context.Background())
+	ready := make(chan string, 1)
+	done := make(chan error, 1)
+	go func() {
+		done <- serve(ctx, slog.New(slog.NewTextHandler(&logBuf, nil)),
+			serveConfig{dir: dir, listen: "127.0.0.1:0", certFile: certFile, keyFile: keyFile, devUser: "pdutton"}, ready)
+	}()
+	var addr string
+	select {
+	case addr = <-ready:
+	case err := <-done:
+		t.Fatalf("serve exited: %v", err)
+	}
+
+	pemBytes, err := os.ReadFile(certFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots := x509.NewCertPool()
+	roots.AppendCertsFromPEM(pemBytes)
+	client := &http.Client{Transport: &http.Transport{
+		TLSClientConfig:   &tls.Config{RootCAs: roots},
+		ForceAttemptHTTP2: true,
+	}}
+	resp, err := client.Get("https://" + addr + "/api/v1/me")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || !strings.Contains(string(body), `"pdutton"`) {
+		t.Errorf("GET /me = %d %s", resp.StatusCode, body)
+	}
+	if resp.TLS == nil || resp.ProtoMajor != 2 {
+		t.Errorf("served over %s, TLS %v; want HTTP/2 over TLS", resp.Proto, resp.TLS != nil)
+	}
+	client.CloseIdleConnections()
+
+	cancel()
+	if err := <-done; err != nil {
+		t.Errorf("serve returned %v", err)
+	}
+	log := logBuf.String()
+	want := fmt.Sprintf(`level=INFO msg="TLS certificate loaded" file=%s subject="CN=localhost" names=localhost,127.0.0.1 expires=`, certFile)
+	if i := strings.Index(log, want); i < 0 || i > strings.Index(log, "DockIt serving") {
+		t.Errorf("certificate not logged before serving:\n%s", log)
+	}
+	if !strings.Contains(log, "url=https://") || strings.Contains(log, "expired") {
+		t.Errorf("log:\n%s", log)
+	}
+}
+
+func TestServeTLSExpired(t *testing.T) {
+	certFile, keyFile := writeCert(t, time.Now().Add(-time.Hour))
+	var logBuf bytes.Buffer
+	if _, err := loadCertificate(slog.New(slog.NewTextHandler(&logBuf, nil)), certFile, keyFile); err != nil {
+		t.Fatal(err)
+	}
+	if log := logBuf.String(); !strings.Contains(log, `level=WARN msg="the TLS certificate has expired; browsers will refuse it" file=`+certFile) {
+		t.Errorf("expiry not warned of:\n%s", log)
+	}
+}
+
+// A certificate or key that cannot be used is a settings problem, found
+// before DockIt says it is serving.
+func TestServeTLSErrors(t *testing.T) {
+	dir := initDataset(t)
+	certFile, keyFile := writeCert(t, time.Now().Add(24*time.Hour))
+	otherCert, _ := writeCert(t, time.Now().Add(24*time.Hour))
+	missing := filepath.Join(t.TempDir(), "missing.pem")
+	unreadable := filepath.Join(t.TempDir(), "key.pem")
+	if err := os.WriteFile(unreadable, nil, 0); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, cert, key string
+		msgs            []string
+	}{
+		{"missing cert", missing, keyFile, []string{"TLS certificate: ", missing}},
+		{"missing key", certFile, missing, []string{"TLS key: ", missing}},
+		{"unreadable key", certFile, unreadable, []string{"TLS key: ", unreadable, "permission denied", "must be able to read it"}},
+		{"mismatched pair", otherCert, keyFile, []string{otherCert, keyFile, "does not match"}},
+		{"key as cert", keyFile, keyFile, []string{"TLS certificate " + keyFile}},
+	} {
+		if tc.key == unreadable {
+			if _, err := os.ReadFile(unreadable); err == nil {
+				t.Logf("%s: skipped: the test can read a file with mode 0 (root, or Windows)", tc.name)
+				continue
+			}
+		}
+		r := dockit(t, "", nil, "serve", "-listen", "127.0.0.1:0", "-tls-cert", tc.cert, "-tls-key", tc.key, dir)
+		if r.code != exitConfig || strings.Contains(r.stderr, "DockIt serving") {
+			t.Errorf("%s: %+v", tc.name, r)
+		}
+		for _, msg := range tc.msgs {
+			if !strings.Contains(r.stderr, msg) {
+				t.Errorf("%s: stderr does not contain %q:\n%s", tc.name, msg, r.stderr)
+			}
+		}
+		if _, err := os.Stat(filepath.Join(dir, store.LockFile)); !os.IsNotExist(err) {
+			t.Fatalf("%s: lock left behind", tc.name)
+		}
 	}
 }
 
