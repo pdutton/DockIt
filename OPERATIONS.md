@@ -43,7 +43,7 @@ argument, or reads it from `$DOCKIT_DATA` if none is given. `serve` also takes:
 | Flag                 | Environment       | Default          | Purpose                           |
 |----------------------|-------------------|------------------|-----------------------------------|
 | `-listen`            | `DOCKIT_LISTEN`   | `localhost:8080` | Address to listen on. Use `:8080` to accept connections from other machines. |
-| `-tls-cert`, `-tls-key` | `DOCKIT_TLS_CERT`, `DOCKIT_TLS_KEY` | | Serve HTTPS directly. In the cloud, terminate TLS at a reverse proxy instead. |
+| `-tls-cert`, `-tls-key` | `DOCKIT_TLS_CERT`, `DOCKIT_TLS_KEY` | | Serve HTTPS directly, with this PEM certificate and key, which the user DockIt runs as must be able to read. `serve` checks them when it starts and logs the certificate's names and expiry. In the cloud, terminate TLS at a reverse proxy instead. |
 | `-base-url`          | `DOCKIT_BASE_URL` |                  | The URL people use to reach DockIt, such as `https://dockit.example.com`. An `https` URL marks the login cookie Secure; set it when a proxy terminates TLS. |
 | `-dev-insecure-user` |                   |                  | Development only: no authentication; every request acts as this user. Refuses to start unless listening on localhost. |
 
@@ -70,9 +70,9 @@ settings. The image sets two of them:
 Run `dockit <command> -h` for a command's flags.
 
 `serve` exits with status 78 when it cannot start until its settings or the
-dataset are fixed: before `init`, when the dataset has errors, or while another
-instance holds the lock. Other errors exit with status 1, and mistakes on the
-command line with 2.
+dataset are fixed: before `init`, when the dataset has errors, while another
+instance holds the lock, or when it cannot read or use its TLS certificate or
+key. Other errors exit with status 1, and mistakes on the command line with 2.
 
 ## Stale locks
 

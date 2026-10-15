@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -61,7 +62,7 @@ func runServe(e *env, args []string) error {
 // serve runs the server until ctx is done.  If ready is not nil, the bound
 // address is sent on it once the server is listening.  An error that stops it
 // starting, other than failing to listen, is a configError: retrying will not
-// help until someone fixes the settings or the dataset.
+// help until someone fixes the settings, the TLS files or the dataset.
 //
 // Under systemd, notifySocket is $NOTIFY_SOCKET, and serve tells systemd once
 // it is listening, so `systemctl start` waits for that and reports a failure
@@ -76,6 +77,15 @@ type serveConfig struct {
 
 func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- string) error {
 	dir, listen, certFile, keyFile, devUser := cfg.dir, cfg.listen, cfg.certFile, cfg.keyFile, cfg.devUser
+	// Before the dataset is touched, so that a bad certificate leaves it as it
+	// was, and before DockIt says it is serving.
+	var cert *tls.Certificate
+	if certFile != "" {
+		var err error
+		if cert, err = loadCertificate(log, certFile, keyFile); err != nil {
+			return configError{err}
+		}
+	}
 	old, err := store.RemoveStaleLock(dir)
 	if err != nil {
 		return configError{err}
@@ -149,6 +159,9 @@ func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- 
 		IdleTimeout:       2 * time.Minute,
 		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
 	}
+	if cert != nil {
+		srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{*cert}}
+	}
 	ln, err := net.Listen("tcp", listen)
 	if err != nil {
 		return err
@@ -168,8 +181,10 @@ func serve(ctx context.Context, log *slog.Logger, cfg serveConfig, ready chan<- 
 
 	errc := make(chan error, 1)
 	go func() {
-		if certFile != "" {
-			errc <- srv.ServeTLS(ln, certFile, keyFile)
+		if cert != nil {
+			// The certificate is in srv.TLSConfig.  ServeTLS, unlike Serve
+			// on a tls.Listener, also offers HTTP/2.
+			errc <- srv.ServeTLS(ln, "", "")
 		} else {
 			errc <- srv.Serve(ln)
 		}
